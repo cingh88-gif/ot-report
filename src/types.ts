@@ -45,3 +45,6 @@ export interface CsvRow {
 }
 
 export type AllCsvData = Record<number, Record<number, Record<TeamId, Partial<Record<PartId, MetricData>>>>>;
+
+// year → month → week → team → part → MetricData
+export type WeeklyCsvData = Record<number, Record<number, Record<number, Record<TeamId, Partial<Record<PartId, MetricData>>>>>>;

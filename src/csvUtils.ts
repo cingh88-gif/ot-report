@@ -1,4 +1,4 @@
-import { TeamId, PartId, MetricData, TEAM_NAMES, PART_NAMES, CsvRow, AllCsvData } from './types';
+import { TeamId, PartId, MetricData, TEAM_NAMES, PART_NAMES, CsvRow, AllCsvData, WeeklyCsvData } from './types';
 
 const TEAM_NAME_TO_ID: Record<string, TeamId> = {};
 (Object.keys(TEAM_NAMES) as TeamId[]).forEach(id => {
@@ -153,4 +153,83 @@ export function buildHistoricalTrendData(
   }
 
   return result;
+}
+
+export function buildWeeklyCsvData(rows: CsvRow[]): WeeklyCsvData {
+  const data: WeeklyCsvData = {};
+
+  for (const row of rows) {
+    if (row.week <= 0) continue; // only week > 0
+
+    const teamId = TEAM_NAME_TO_ID[row.teamName];
+    const partId = PART_NAME_TO_ID[row.partName];
+    if (!teamId || !partId) continue;
+
+    if (!data[row.year]) data[row.year] = {};
+    if (!data[row.year][row.month]) data[row.year][row.month] = {};
+    if (!data[row.year][row.month][row.week]) data[row.year][row.month][row.week] = {} as any;
+    if (!data[row.year][row.month][row.week][teamId]) data[row.year][row.month][row.week][teamId] = {};
+
+    const hc = row.headcount || 1;
+    data[row.year][row.month][row.week][teamId][partId] = {
+      headcount: row.headcount,
+      workingHours: parseFloat((row.totalWorkingHours / hc).toFixed(1)),
+      overtimeHours: parseFloat((row.totalOvertimeHours / hc).toFixed(1)),
+    };
+  }
+
+  return data;
+}
+
+export function extractWeekData(
+  data: WeeklyCsvData,
+  year: number,
+  month: number,
+  week: number
+): Record<TeamId, Partial<Record<PartId, MetricData>>> | null {
+  const weekData = data[year]?.[month]?.[week];
+  if (!weekData) return null;
+
+  const result: Record<TeamId, Partial<Record<PartId, MetricData>>> = {
+    team1: {},
+    team2: {},
+    team3: {},
+  };
+
+  for (const teamId of Object.keys(TEAM_NAMES) as TeamId[]) {
+    if (weekData[teamId]) {
+      result[teamId] = { ...weekData[teamId] };
+    }
+  }
+
+  // Check if there's actually any data
+  const hasData = Object.values(result).some(team => Object.keys(team).length > 0);
+  return hasData ? result : null;
+}
+
+export function findPreviousWeek(
+  data: WeeklyCsvData,
+  year: number,
+  month: number,
+  week: number
+): Record<TeamId, Partial<Record<PartId, MetricData>>> | null {
+  // Try previous week in same month
+  if (week > 1) {
+    const prev = extractWeekData(data, year, month, week - 1);
+    if (prev) return prev;
+  }
+
+  // Cross month boundary: try previous month's highest week
+  let prevYear = year;
+  let prevMonth = month - 1;
+  if (prevMonth < 1) {
+    prevMonth = 12;
+    prevYear -= 1;
+  }
+
+  const monthWeeks = data[prevYear]?.[prevMonth];
+  if (!monthWeeks) return null;
+
+  const maxWeek = Math.max(...Object.keys(monthWeeks).map(Number));
+  return extractWeekData(data, prevYear, prevMonth, maxWeek);
 }

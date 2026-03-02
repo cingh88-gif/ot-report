@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
   LineChart, Line, ComposedChart, Cell
@@ -15,7 +15,7 @@ import { twMerge } from 'tailwind-merge';
 import Papa from 'papaparse';
 import { format, startOfWeek, endOfWeek, getWeekOfMonth } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { TeamId, PartId, TEAM_NAMES, PART_NAMES, MetricData, AllCsvData } from './types';
+import { TeamId, PartId, TEAM_NAMES, PART_NAMES, MetricData, AllCsvData, WeeklyCsvData } from './types';
 import {
   parseCsvRows,
   buildAllCsvData,
@@ -24,11 +24,26 @@ import {
   deriveProjectionData,
   deriveLastYearData,
   buildHistoricalTrendData,
+  buildWeeklyCsvData,
+  extractWeekData,
+  findPreviousWeek,
 } from './csvUtils';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
+
+// 월별 근무일수 (한국 공휴일 반영)
+const WORKING_DAYS: Record<number, number[]> = {
+  2023: [21, 20, 22, 20, 20, 21, 21, 22, 19, 20, 22, 20], // 248일
+  2024: [22, 19, 20, 22, 21, 19, 23, 21, 18, 21, 21, 21], // 248일
+  2025: [19, 20, 21, 22, 20, 20, 23, 20, 22, 19, 20, 22], // 248일
+  2026: [21, 17, 22, 22, 19, 22, 23, 21, 20, 21, 21, 22], // 251일
+};
+
+const getWorkingDays = (year: number, month: number): number => {
+  return WORKING_DAYS[year]?.[month - 1] || 22; // 기본값 22일
+};
 
 // Mock Initial Data
 const INITIAL_DATA: Record<TeamId, Partial<Record<PartId, MetricData>>> = {
@@ -99,12 +114,69 @@ const HISTORICAL_TREND_DATA = generateHistoricalData();
 export default function App() {
   const [currentData, setCurrentData] = useState(INITIAL_DATA);
   const [allCsvData, setAllCsvData] = useState<AllCsvData | null>(null);
+  const [weeklyCsvData, setWeeklyCsvData] = useState<WeeklyCsvData | null>(null);
+  const [currentWeekData, setCurrentWeekData] = useState<Record<TeamId, Partial<Record<PartId, MetricData>>> | null>(null);
+  const [prevWeekData, setPrevWeekData] = useState<Record<TeamId, Partial<Record<PartId, MetricData>>> | null>(null);
   const [lastYearData, setLastYearData] = useState(LAST_YEAR_DATA);
   const [projectionData, setProjectionData] = useState(PROJECTION_DATA);
   const [historicalTrendData, setHistoricalTrendData] = useState(HISTORICAL_TREND_DATA);
+  const [displayPeriod, setDisplayPeriod] = useState({ year: new Date().getFullYear(), month: new Date().getMonth() + 1 });
   const [selectedYears, setSelectedYears] = useState<number[]>([2025, 2026]);
   const [selectedMonths, setSelectedMonths] = useState<number[]>(MONTHS);
+  const [selectedTeams, setSelectedTeams] = useState<TeamId[]>(Object.keys(TEAM_NAMES) as TeamId[]);
+  const [showTeamAverage, setShowTeamAverage] = useState(false);
   const [reportDate, setReportDate] = useState(new Date());
+
+  // Auto-load CSV data on mount
+  useEffect(() => {
+    fetch('/data.csv')
+      .then(res => res.text())
+      .then(csvText => {
+        const parseResult = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+        const rows = parseCsvRows(parseResult.data as Record<string, string>[]);
+        if (rows.length === 0) return;
+
+        const allData = buildAllCsvData(rows);
+        setAllCsvData(allData);
+        setWeeklyCsvData(buildWeeklyCsvData(rows));
+        setHistoricalTrendData(buildHistoricalTrendData(allData));
+        setSelectedYears(Object.keys(allData).map(Number).sort((a, b) => a - b).slice(-2));
+      })
+      .catch(() => {}); // fallback to mock data
+  }, []);
+
+  // Update current/lastYear/projection data when reportDate or allCsvData changes
+  useEffect(() => {
+    if (!allCsvData) return;
+    let year = reportDate.getFullYear();
+    let month = reportDate.getMonth() + 1;
+
+    const extracted = extractPeriodData(allCsvData, year, month);
+    // If no data for selected month, fallback to latest available period
+    const hasData = Object.values(extracted).some(team => Object.keys(team).length > 0);
+    if (!hasData) {
+      const latest = findLatestPeriod(allCsvData);
+      year = latest.year;
+      month = latest.month;
+    }
+
+    setDisplayPeriod({ year, month });
+    setCurrentData(extractPeriodData(allCsvData, year, month));
+    setLastYearData(deriveLastYearData(allCsvData, year, month));
+    setProjectionData(deriveProjectionData(allCsvData, year, month));
+
+    // Weekly data for table-1
+    if (weeklyCsvData) {
+      const week = getWeekOfMonth(reportDate, { weekStartsOn: 1 });
+      const curWeek = extractWeekData(weeklyCsvData, year, month, week);
+      const prvWeek = curWeek ? findPreviousWeek(weeklyCsvData, year, month, week) : null;
+      setCurrentWeekData(curWeek);
+      setPrevWeekData(prvWeek);
+    } else {
+      setCurrentWeekData(null);
+      setPrevWeekData(null);
+    }
+  }, [reportDate, allCsvData, weeklyCsvData]);
 
   const getWeekString = (date: Date) => {
     const start = startOfWeek(date, { weekStartsOn: 1 });
@@ -121,8 +193,14 @@ export default function App() {
   };
 
   const toggleMonth = (month: number) => {
-    setSelectedMonths(prev => 
+    setSelectedMonths(prev =>
       prev.includes(month) ? prev.filter(m => m !== month) : [...prev, month].sort((a, b) => a - b)
+    );
+  };
+
+  const toggleTeam = (teamId: TeamId) => {
+    setSelectedTeams(prev =>
+      prev.includes(teamId) ? prev.filter(t => t !== teamId) : [...prev, teamId]
     );
   };
 
@@ -181,22 +259,16 @@ export default function App() {
       }
 
       const allData = buildAllCsvData(rows);
-      const { year: latestYear, month: latestMonth } = findLatestPeriod(allData);
-
-      const currentPeriodData = extractPeriodData(allData, latestYear, latestMonth);
-      const lyData = deriveLastYearData(allData, latestYear, latestMonth);
-      const projData = deriveProjectionData(allData, latestYear, latestMonth);
       const trendData = buildHistoricalTrendData(allData);
       const years = Object.keys(allData).map(Number).sort((a, b) => a - b);
 
       setAllCsvData(allData);
-      setCurrentData(currentPeriodData);
-      setLastYearData(lyData);
-      setProjectionData(projData);
+      setWeeklyCsvData(buildWeeklyCsvData(rows));
       setHistoricalTrendData(trendData);
-      setSelectedYears(years.slice(-2)); // Select last 2 years by default
+      setSelectedYears(years.slice(-2));
+      // currentData, lastYearData, projectionData will be updated by the reportDate useEffect
 
-      alert(`${rows.length}건의 데이터가 업로드되었습니다. (최신: ${latestYear}년 ${latestMonth}월)`);
+      alert(`${rows.length}건의 데이터가 업로드되었습니다. 선택된 날짜(${reportDate.getFullYear()}년 ${reportDate.getMonth() + 1}월) 기준으로 표시됩니다.`);
     };
 
     reader.readAsArrayBuffer(file);
@@ -252,28 +324,116 @@ export default function App() {
   }, [currentData, lastYearData, projectionData]);
 
   // Combine historical data for selected years into a single array for the trend chart
+  // Each line = year + team combination (e.g. "2025년 생산1팀")
   const trendChartData = useMemo(() => {
     return MONTHS
       .filter(m => selectedMonths.includes(m))
       .map(monthIdx => {
-        const monthName = `${monthIdx}월`;
-        const entry: any = { name: monthName };
+        const entry: any = { name: `${monthIdx}월` };
         selectedYears.forEach(year => {
           const yearArr = historicalTrendData[year];
           if (!yearArr) return;
           const yearData = yearArr[monthIdx - 1];
           if (!yearData) return;
-          const teamIds = Object.keys(TEAM_NAMES) as TeamId[];
-          const validTeams = teamIds.filter(tid => typeof yearData[tid] === 'number');
-          if (validTeams.length === 0) return;
-          const avgOvertime = validTeams.reduce((acc, tid) => acc + (yearData[tid] as number), 0) / validTeams.length;
-          entry[`${year}년`] = parseFloat(avgOvertime.toFixed(1));
+          selectedTeams.forEach(tid => {
+            if (typeof yearData[tid] === 'number') {
+              entry[`${year}년 ${TEAM_NAMES[tid]}`] = yearData[tid] as number;
+            }
+          });
+          if (showTeamAverage) {
+            const allTeamIds = Object.keys(TEAM_NAMES) as TeamId[];
+            const validAll = allTeamIds.filter(tid => typeof yearData[tid] === 'number');
+            if (validAll.length > 0) {
+              const avg = validAll.reduce((acc, tid) => acc + (yearData[tid] as number), 0) / validAll.length;
+              entry[`${year}년 생산팀`] = parseFloat(avg.toFixed(1));
+            }
+          }
         });
         return entry;
       });
-  }, [selectedYears, selectedMonths, historicalTrendData]);
+  }, [selectedYears, selectedMonths, selectedTeams, historicalTrendData]);
+
+  // Build line keys and colors for the trend chart
+  const TEAM_STROKE_COLORS: Record<TeamId, string> = {
+    team1: '#2563EB', // blue
+    team2: '#DC2626', // red
+    team3: '#16A34A', // green
+  };
+  const YEAR_DASH_PATTERNS: Record<number, string> = {};
+  // Oldest years get dashes, latest is solid
+  availableYears.forEach((year, i) => {
+    if (i < availableYears.length - 1) {
+      YEAR_DASH_PATTERNS[year] = `${6 - i * 2} ${3}`;
+    } else {
+      YEAR_DASH_PATTERNS[year] = '';
+    }
+  });
+
+  const AVERAGE_COLOR = '#F59E0B'; // amber
+
+  const trendLineKeys = useMemo(() => {
+    const keys: { key: string; color: string; dash: string }[] = [];
+    selectedYears.forEach(year => {
+      if (showTeamAverage) {
+        keys.push({
+          key: `${year}년 생산팀`,
+          color: AVERAGE_COLOR,
+          dash: YEAR_DASH_PATTERNS[year] || '',
+        });
+      }
+      selectedTeams.forEach(tid => {
+        keys.push({
+          key: `${year}년 ${TEAM_NAMES[tid]}`,
+          color: TEAM_STROKE_COLORS[tid],
+          dash: YEAR_DASH_PATTERNS[year] || '',
+        });
+      });
+    });
+    return keys;
+  }, [selectedYears, selectedTeams, showTeamAverage, availableYears]);
 
   const YEAR_COLORS = DYNAMIC_YEAR_COLORS;
+
+  const buildTable1Rows = (
+    curData: Record<TeamId, Partial<Record<PartId, MetricData>>>,
+    prevData: Record<TeamId, Partial<Record<PartId, MetricData>>>,
+    period: { year: number; month: number },
+    isWeekly: boolean = false
+  ) => {
+    const curWD = isWeekly ? 5 : getWorkingDays(period.year, period.month);
+    const prevWD = isWeekly ? 5 : getWorkingDays(period.year - 1, period.month);
+
+    return (Object.keys(TEAM_NAMES) as TeamId[]).map(teamId => {
+      const parts = Object.keys(curData[teamId]) as PartId[];
+      return parts.map((partId, pIdx) => {
+        const curr = curData[teamId][partId]!;
+        const prev = (prevData[teamId]?.[partId]) || { headcount: 0, workingHours: 0, overtimeHours: 0 };
+
+        const metrics = [
+          { label: '평균 인원(명)', cVal: curr.headcount, pVal: prev.headcount },
+          { label: '인당 평균 근무시간(h)', cVal: parseFloat((curr.workingHours / curWD).toFixed(1)), pVal: parseFloat((prev.workingHours / prevWD).toFixed(1)) },
+          { label: '인당 평균 잔업시간(h)', cVal: parseFloat((curr.overtimeHours / curWD).toFixed(1)), pVal: parseFloat((prev.overtimeHours / prevWD).toFixed(1)) },
+        ];
+
+        return metrics.map((m, mIdx) => {
+          const diff = m.pVal !== 0 ? ((m.cVal - m.pVal) / m.pVal * 100).toFixed(1) : '0.0';
+          const isUp = m.cVal > m.pVal;
+          const rowspanTeam = pIdx === 0 && mIdx === 0 ? '<td rowspan="' + (parts.length * 3) + '" class="bg-group">' + TEAM_NAMES[teamId] + '</td>' : '';
+          const rowspanPart = mIdx === 0 ? '<td rowspan="3" class="bg-subgroup">' + PART_NAMES[partId] + '</td>' : '';
+          const otClass = m.label.includes('잔업') && m.cVal > 2 ? 'text-rose-500' : '';
+
+          return '<tr class="data-row">'
+            + rowspanTeam
+            + rowspanPart
+            + '<td>' + m.label + '</td>'
+            + '<td class="font-mono base-val">' + m.pVal + '</td>'
+            + '<td contenteditable="true" class="font-mono font-bold editable-cell ' + otClass + '">' + m.cVal + '</td>'
+            + '<td class="font-mono growth-val ' + (isUp ? 'val-up' : 'val-down') + '">' + (isUp ? '▲' : '▼') + ' ' + Math.abs(parseFloat(diff)) + '%</td>'
+            + '</tr>';
+        }).join('');
+      }).join('');
+    }).join('');
+  };
 
   const generateReport = () => {
     const reportWindow = window.open('', '_blank', 'width=1000,height=1200');
@@ -365,37 +525,9 @@ export default function App() {
                 </tr>
               </thead>
               <tbody>
-                ${(Object.keys(TEAM_NAMES) as TeamId[]).map(teamId => {
-                  const parts = Object.keys(currentData[teamId]) as PartId[];
-                  return parts.map((partId, pIdx) => {
-                    const curr = currentData[teamId][partId]!;
-                    const prev = (lastYearData[teamId]?.[partId]) || { headcount: 0, workingHours: 0, overtimeHours: 0 };
-                    
-                    const metrics = [
-                      { label: '평균 인원(명)', key: 'headcount' as const },
-                      { label: '인당 평균 근무시간(h)', key: 'workingHours' as const },
-                      { label: '인당 평균 잔업시간(h)', key: 'overtimeHours' as const }
-                    ];
-
-                    return metrics.map((m, mIdx) => {
-                      const cVal = curr[m.key];
-                      const pVal = prev[m.key];
-                      const diff = pVal !== 0 ? ((cVal - pVal) / pVal * 100).toFixed(1) : '0.0';
-                      const isUp = cVal > pVal;
-
-                      return `
-                        <tr class="data-row">
-                          ${pIdx === 0 && mIdx === 0 ? `<td rowspan="${parts.length * 3}" class="bg-group">${TEAM_NAMES[teamId]}</td>` : ''}
-                          ${mIdx === 0 ? `<td rowspan="3" class="bg-subgroup">${PART_NAMES[partId]}</td>` : ''}
-                          <td>${m.label}</td>
-                          <td class="font-mono base-val">${pVal}</td>
-                          <td contenteditable="true" class="font-mono font-bold editable-cell ${m.key === 'overtimeHours' && cVal > 2 ? 'text-rose-500' : ''}">${cVal}</td>
-                          <td class="font-mono growth-val ${isUp ? 'val-up' : 'val-down'}">${isUp ? '▲' : '▼'} ${Math.abs(parseFloat(diff))}%</td>
-                        </tr>
-                      `;
-                    }).join('');
-                  }).join('');
-                }).join('')}
+                ${currentWeekData && prevWeekData
+                  ? buildTable1Rows(currentWeekData, prevWeekData, displayPeriod, true)
+                  : buildTable1Rows(currentData, lastYearData, displayPeriod)}
               </tbody>
             </table>
 
@@ -420,9 +552,9 @@ export default function App() {
                     
                     const metrics = [
                       { label: '평균 인원(명)', c: curr.headcount, p: proj.headcount },
-                      { label: '총 근무시간(h)', c: Math.round(curr.headcount * curr.workingHours * 20), p: Math.round(proj.headcount * proj.workingHours * 20) },
-                      { label: '총 잔업시간(h)', c: Math.round(curr.headcount * curr.overtimeHours * 20), p: Math.round(proj.headcount * proj.overtimeHours * 20) },
-                      { label: '평균 잔업시간(시간/인)', c: Math.round(curr.overtimeHours * 20), p: Math.round(proj.overtimeHours * 20) }
+                      { label: '총 근무시간(h)', c: Math.round(curr.headcount * curr.workingHours), p: Math.round(proj.headcount * proj.workingHours) },
+                      { label: '총 잔업시간(h)', c: Math.round(curr.headcount * curr.overtimeHours), p: Math.round(proj.headcount * proj.overtimeHours) },
+                      { label: '인당 평균 잔업시간(h)', c: curr.overtimeHours, p: proj.overtimeHours }
                     ];
 
                     return metrics.map((m, mIdx) => {
@@ -448,9 +580,6 @@ export default function App() {
             <div class="mt-4 page-break">
               <h2 class="text-sm font-bold mb-2">3. 종합 검토 의견</h2>
               <div contenteditable="true" class="editable-field bg-slate-50 p-4 rounded-lg border border-slate-200 min-h-[120px] text-xs leading-relaxed">
-                • 전사 평균 잔업시간은 전주 대비 소폭 상승하였으나, 가동 인원 최적화를 통해 생산 목표를 달성 중임.
-                • 생산2팀 충전/성형 파트의 잔업 급증은 설비 점검에 따른 일시적 현상으로 파악됨.
-                • 월말 예상치 대비 총 근무시간은 안정적인 범위 내에서 관리되고 있음.
               </div>
             </div>
           </div>
@@ -571,32 +700,65 @@ export default function App() {
         <div className="space-y-8">
           {/* Year Selection & Trend Chart */}
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm w-[1204px]">
-            <div className="flex flex-col gap-6 mb-6">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex flex-col gap-4 mb-6">
+              <div className="flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold">연도별 평균 잔업시간 추이 (월별)</h2>
-                  <p className="text-xs text-slate-400 mt-1">인당 평균 잔업시간(h)의 연도별 변화를 비교합니다.</p>
+                  <p className="text-xs text-slate-400 mt-1">인당 평균 잔업시간(h)의 연도별 변화를 팀별로 비교합니다.</p>
                 </div>
-                <div className="flex flex-wrap gap-3 bg-slate-50 p-2 rounded-xl border border-slate-100">
-                  <div className="flex items-center gap-2 px-3 border-r border-slate-200 mr-1">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">연도</span>
+                <div className="flex gap-2 flex-shrink-0">
+                  <div className="flex items-center gap-1 bg-slate-50 p-1.5 rounded-lg border border-slate-100">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">연도</span>
+                    {availableYears.map(year => (
+                      <label key={year} className="flex items-center gap-1.5 px-2 py-1 rounded-md cursor-pointer hover:bg-white hover:shadow-sm group">
+                        <input
+                          type="checkbox"
+                          checked={selectedYears.includes(year)}
+                          onChange={() => toggleYear(year)}
+                          className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span className={cn(
+                          "text-xs font-bold transition-colors",
+                          selectedYears.includes(year) ? "text-indigo-600" : "text-slate-400 group-hover:text-slate-600"
+                        )}>
+                          {year}년
+                        </span>
+                      </label>
+                    ))}
                   </div>
-                  {availableYears.map(year => (
-                    <label key={year} className="flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-all hover:bg-white hover:shadow-sm group">
-                      <input 
-                        type="checkbox" 
-                        checked={selectedYears.includes(year)}
-                        onChange={() => toggleYear(year)}
-                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  <div className="flex items-center gap-1 bg-slate-50 p-1.5 rounded-lg border border-slate-100">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">팀</span>
+                    {(Object.keys(TEAM_NAMES) as TeamId[]).map(teamId => (
+                      <label key={teamId} className="flex items-center gap-1.5 px-2 py-1 rounded-md cursor-pointer hover:bg-white hover:shadow-sm group">
+                        <input
+                          type="checkbox"
+                          checked={selectedTeams.includes(teamId)}
+                          onChange={() => toggleTeam(teamId)}
+                          className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span className={cn(
+                          "text-xs font-bold transition-colors",
+                          selectedTeams.includes(teamId) ? "text-indigo-600" : "text-slate-400 group-hover:text-slate-600"
+                        )} style={{ color: selectedTeams.includes(teamId) ? TEAM_STROKE_COLORS[teamId] : undefined }}>
+                          {TEAM_NAMES[teamId]}
+                        </span>
+                      </label>
+                    ))}
+                    <label className="flex items-center gap-1.5 px-2 py-1 rounded-md cursor-pointer hover:bg-white hover:shadow-sm group border-l border-slate-200 ml-1">
+                      <input
+                        type="checkbox"
+                        checked={showTeamAverage}
+                        onChange={() => setShowTeamAverage(!showTeamAverage)}
+                        className="w-3.5 h-3.5 rounded border-slate-300 text-amber-500 focus:ring-amber-400"
                       />
                       <span className={cn(
-                        "text-sm font-bold transition-colors",
-                        selectedYears.includes(year) ? "text-indigo-600" : "text-slate-400 group-hover:text-slate-600"
+                        "text-xs font-bold transition-colors",
+                        showTeamAverage ? "text-amber-500" : "text-slate-400 group-hover:text-slate-600"
                       )}>
-                        {year}년
+                        생산팀
                       </span>
                     </label>
-                  ))}
+                  </div>
                 </div>
               </div>
 
@@ -658,16 +820,17 @@ export default function App() {
                   <Tooltip 
                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                   />
-                  <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px', fontSize: '12px', fontWeight: 600 }} />
-                  {selectedYears.map(year => (
-                    <Line 
-                      key={year}
-                      type="monotone" 
-                      dataKey={`${year}년`} 
-                      stroke={YEAR_COLORS[year]} 
-                      strokeWidth={3}
-                      dot={{ r: 4, fill: YEAR_COLORS[year], strokeWidth: 2, stroke: '#fff' }}
-                      activeDot={{ r: 6, strokeWidth: 0 }}
+                  <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px', fontSize: '11px', fontWeight: 600 }} />
+                  {trendLineKeys.map(({ key, color, dash }) => (
+                    <Line
+                      key={key}
+                      type="monotone"
+                      dataKey={key}
+                      stroke={color}
+                      strokeWidth={2.5}
+                      strokeDasharray={dash}
+                      dot={{ r: 3, fill: color, strokeWidth: 2, stroke: '#fff' }}
+                      activeDot={{ r: 5, strokeWidth: 0 }}
                       animationDuration={1000}
                     />
                   ))}
