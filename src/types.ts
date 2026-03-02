@@ -5,6 +5,8 @@ export interface MetricData {
   headcount: number;      // 평균인원 (명)
   workingHours: number;   // 인당 평균 근무시간 (h)
   overtimeHours: number;  // 인당 평균 잔업시간 (h)
+  totalWorkingHours?: number;   // 원본 총 근무시간 (h) - CSV에서 직접 보존
+  totalOvertimeHours?: number;  // 원본 총 잔업시간 (h) - CSV에서 직접 보존
 }
 
 export interface WeeklyReport {

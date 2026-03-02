@@ -611,8 +611,8 @@ export default function App() {
                     
                     const metrics = [
                       { label: '평균 인원(명)', c: curr.headcount, p: proj.headcount },
-                      { label: '총 근무시간(h)', c: Math.round(curr.headcount * curr.workingHours), p: Math.round(proj.headcount * proj.workingHours) },
-                      { label: '총 잔업시간(h)', c: Math.round(curr.headcount * curr.overtimeHours), p: Math.round(proj.headcount * proj.overtimeHours) },
+                      { label: '총 근무시간(h)', c: curr.totalWorkingHours ?? Math.round(curr.headcount * curr.workingHours), p: proj.totalWorkingHours ?? Math.round(proj.headcount * proj.workingHours) },
+                      { label: '총 잔업시간(h)', c: curr.totalOvertimeHours ?? Math.round(curr.headcount * curr.overtimeHours), p: proj.totalOvertimeHours ?? Math.round(proj.headcount * proj.overtimeHours) },
                       { label: '인당 평균 잔업시간(h)', c: curr.overtimeHours, p: proj.overtimeHours }
                     ];
 

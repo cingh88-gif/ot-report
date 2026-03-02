@@ -44,6 +44,8 @@ export function buildAllCsvData(rows: CsvRow[]): AllCsvData {
       headcount: row.headcount,
       workingHours: parseFloat((row.totalWorkingHours / hc).toFixed(1)),
       overtimeHours: parseFloat((row.totalOvertimeHours / hc).toFixed(1)),
+      totalWorkingHours: row.totalWorkingHours,
+      totalOvertimeHours: row.totalOvertimeHours,
     };
   }
 
@@ -175,6 +177,8 @@ export function buildWeeklyCsvData(rows: CsvRow[]): WeeklyCsvData {
       headcount: row.headcount,
       workingHours: parseFloat((row.totalWorkingHours / hc).toFixed(1)),
       overtimeHours: parseFloat((row.totalOvertimeHours / hc).toFixed(1)),
+      totalWorkingHours: row.totalWorkingHours,
+      totalOvertimeHours: row.totalOvertimeHours,
     };
   }
 
