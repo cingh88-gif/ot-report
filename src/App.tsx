@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import Papa from 'papaparse';
-import { format, startOfWeek, endOfWeek, getWeekOfMonth } from 'date-fns';
+import { format, startOfWeek, endOfWeek, getWeekOfMonth, lastDayOfMonth } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { TeamId, PartId, TEAM_NAMES, PART_NAMES, MetricData, AllCsvData, WeeklyCsvData } from './types';
 import {
@@ -27,6 +27,7 @@ import {
   buildWeeklyCsvData,
   extractWeekData,
   findPreviousWeek,
+  PreviousWeekResult,
 } from './csvUtils';
 
 function cn(...inputs: ClassValue[]) {
@@ -117,6 +118,9 @@ export default function App() {
   const [weeklyCsvData, setWeeklyCsvData] = useState<WeeklyCsvData | null>(null);
   const [currentWeekData, setCurrentWeekData] = useState<Record<TeamId, Partial<Record<PartId, MetricData>>> | null>(null);
   const [prevWeekData, setPrevWeekData] = useState<Record<TeamId, Partial<Record<PartId, MetricData>>> | null>(null);
+  const [currentWeekInfo, setCurrentWeekInfo] = useState<{ month: number; week: number } | null>(null);
+  const [prevWeekInfo, setPrevWeekInfo] = useState<{ month: number; week: number } | null>(null);
+  const [prevMonthData, setPrevMonthData] = useState(LAST_YEAR_DATA);
   const [lastYearData, setLastYearData] = useState(LAST_YEAR_DATA);
   const [projectionData, setProjectionData] = useState(PROJECTION_DATA);
   const [historicalTrendData, setHistoricalTrendData] = useState(HISTORICAL_TREND_DATA);
@@ -165,16 +169,44 @@ export default function App() {
     setLastYearData(deriveLastYearData(allCsvData, year, month));
     setProjectionData(deriveProjectionData(allCsvData, year, month));
 
-    // Weekly data for table-1
+    // 전월 데이터 (0주차 fallback용)
+    let prevM = month - 1;
+    let prevY = year;
+    if (prevM < 1) { prevM = 12; prevY -= 1; }
+    setPrevMonthData(extractPeriodData(allCsvData, prevY, prevM));
+
+    // Weekly CSV data for table-1
     if (weeklyCsvData) {
-      const week = getWeekOfMonth(reportDate, { weekStartsOn: 1 });
-      const curWeek = extractWeekData(weeklyCsvData, year, month, week);
-      const prvWeek = curWeek ? findPreviousWeek(weeklyCsvData, year, month, week) : null;
+      const curWeekNum = getWeekOfMonth(reportDate, { weekStartsOn: 1 });
+      const curWeek = extractWeekData(weeklyCsvData, year, month, curWeekNum);
+      const prvWeekResult = curWeek ? findPreviousWeek(weeklyCsvData, year, month, curWeekNum) : null;
       setCurrentWeekData(curWeek);
-      setPrevWeekData(prvWeek);
+      setPrevWeekData(prvWeekResult?.data ?? null);
+
+      if (curWeek) {
+        // 주간 데이터 있음 → 실제 주차 표시
+        setCurrentWeekInfo({ month, week: curWeekNum });
+        if (prvWeekResult) {
+          setPrevWeekInfo({ month: prvWeekResult.month, week: prvWeekResult.week });
+        } else if (curWeekNum > 1) {
+          setPrevWeekInfo({ month, week: curWeekNum - 1 });
+        } else {
+          const lastDay = lastDayOfMonth(new Date(prevY, prevM - 1));
+          const lastWeek = getWeekOfMonth(lastDay, { weekStartsOn: 1 });
+          setPrevWeekInfo({ month: prevM, week: lastWeek });
+        }
+      } else {
+        // 주간 데이터 없음 (0주차) → 월 0주차로 표시
+        setCurrentWeekData(null);
+        setPrevWeekData(null);
+        setCurrentWeekInfo({ month, week: 0 });
+        setPrevWeekInfo({ month: prevM, week: 0 });
+      }
     } else {
       setCurrentWeekData(null);
       setPrevWeekData(null);
+      setCurrentWeekInfo({ month, week: 0 });
+      setPrevWeekInfo({ month: prevM, week: 0 });
     }
   }, [reportDate, allCsvData, weeklyCsvData]);
 
@@ -304,24 +336,20 @@ export default function App() {
         if (!metrics) return;
 
         const ly = lastYearData[teamId]?.[partId] || { headcount: 0, workingHours: 0, overtimeHours: 0 };
-        const proj = projectionData[teamId]?.[partId] || { headcount: 0, workingHours: 0, overtimeHours: 0 };
 
         data.push({
           name: `${tName} (${PART_NAMES[partId]})`,
           headcount: metrics.headcount,
           headcountLY: ly.headcount,
-          headcountProj: proj.headcount,
           overtime: metrics.overtimeHours,
           overtimeLY: ly.overtimeHours,
-          overtimeProj: proj.overtimeHours,
           working: metrics.workingHours,
           workingLY: ly.workingHours,
-          workingProj: proj.workingHours,
         });
       });
     });
     return data;
-  }, [currentData, lastYearData, projectionData]);
+  }, [currentData, lastYearData]);
 
   // Combine historical data for selected years into a single array for the trend chart
   // Each line = year + team combination (e.g. "2025년 생산1팀")
@@ -398,10 +426,11 @@ export default function App() {
     curData: Record<TeamId, Partial<Record<PartId, MetricData>>>,
     prevData: Record<TeamId, Partial<Record<PartId, MetricData>>>,
     period: { year: number; month: number },
+    prevPeriod: { year: number; month: number },
     isWeekly: boolean = false
   ) => {
     const curWD = isWeekly ? 5 : getWorkingDays(period.year, period.month);
-    const prevWD = isWeekly ? 5 : getWorkingDays(period.year - 1, period.month);
+    const prevWD = isWeekly ? 5 : getWorkingDays(prevPeriod.year, prevPeriod.month);
 
     return (Object.keys(TEAM_NAMES) as TeamId[]).map(teamId => {
       const parts = Object.keys(curData[teamId]) as PartId[];
@@ -519,15 +548,21 @@ export default function App() {
                   <th>팀구분</th>
                   <th>파트 구분</th>
                   <th>구분</th>
-                  <th>전주</th>
-                  <th>금주</th>
+                  <th>전주(${prevWeekInfo ? `${prevWeekInfo.month}월 ${prevWeekInfo.week}주차` : ''})</th>
+                  <th>금주(${currentWeekInfo ? `${currentWeekInfo.month}월 ${currentWeekInfo.week}주차` : ''})</th>
                   <th>증감율</th>
                 </tr>
               </thead>
               <tbody>
-                ${currentWeekData && prevWeekData
-                  ? buildTable1Rows(currentWeekData, prevWeekData, displayPeriod, true)
-                  : buildTable1Rows(currentData, lastYearData, displayPeriod)}
+                ${(() => {
+                  let pYear = displayPeriod.year;
+                  let pMonth = displayPeriod.month - 1;
+                  if (pMonth < 1) { pMonth = 12; pYear -= 1; }
+                  const prevPeriod = { year: pYear, month: pMonth };
+                  return currentWeekData && prevWeekData
+                    ? buildTable1Rows(currentWeekData, prevWeekData, displayPeriod, prevPeriod, true)
+                    : buildTable1Rows(currentData, prevMonthData, displayPeriod, prevPeriod);
+                })()}
               </tbody>
             </table>
 
@@ -847,15 +882,11 @@ export default function App() {
                 <div className="flex gap-4 text-xs">
                   <div className="flex items-center gap-1.5">
                     <div className="w-3 h-3 rounded-sm bg-indigo-500" />
-                    <span className="text-slate-500">현재</span>
+                    <span className="text-slate-500">당월</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <div className="w-3 h-3 rounded-sm bg-slate-300" />
-                    <span className="text-slate-500">전년</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-sm bg-amber-400" />
-                    <span className="text-slate-500">당월 예상</span>
+                    <span className="text-slate-500">전년 동기</span>
                   </div>
                 </div>
               </div>
@@ -874,7 +905,6 @@ export default function App() {
                     <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
                     <Bar dataKey="overtime" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={24} />
                     <Bar dataKey="overtimeLY" fill="#cbd5e1" radius={[4, 4, 0, 0]} barSize={24} />
-                    <Line type="monotone" dataKey="overtimeProj" stroke="#fbbf24" strokeWidth={2} dot={{ fill: '#fbbf24', r: 4 }} />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>

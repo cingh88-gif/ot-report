@@ -207,16 +207,23 @@ export function extractWeekData(
   return hasData ? result : null;
 }
 
+export interface PreviousWeekResult {
+  data: Record<TeamId, Partial<Record<PartId, MetricData>>>;
+  year: number;
+  month: number;
+  week: number;
+}
+
 export function findPreviousWeek(
   data: WeeklyCsvData,
   year: number,
   month: number,
   week: number
-): Record<TeamId, Partial<Record<PartId, MetricData>>> | null {
+): PreviousWeekResult | null {
   // Try previous week in same month
   if (week > 1) {
     const prev = extractWeekData(data, year, month, week - 1);
-    if (prev) return prev;
+    if (prev) return { data: prev, year, month, week: week - 1 };
   }
 
   // Cross month boundary: try previous month's highest week
@@ -231,5 +238,6 @@ export function findPreviousWeek(
   if (!monthWeeks) return null;
 
   const maxWeek = Math.max(...Object.keys(monthWeeks).map(Number));
-  return extractWeekData(data, prevYear, prevMonth, maxWeek);
+  const result = extractWeekData(data, prevYear, prevMonth, maxWeek);
+  return result ? { data: result, year: prevYear, month: prevMonth, week: maxWeek } : null;
 }
