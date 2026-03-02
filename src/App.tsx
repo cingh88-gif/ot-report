@@ -360,7 +360,7 @@ export default function App() {
           if (!yearData) return;
           selectedTeams.forEach(tid => {
             if (typeof yearData[tid] === 'number') {
-              entry[`${year}년 ${TEAM_NAMES[tid]}`] = yearData[tid] as number;
+              entry[`${year % 100}년 ${TEAM_NAMES[tid]}`] = yearData[tid] as number;
             }
           });
           if (showTeamAverage) {
@@ -368,7 +368,7 @@ export default function App() {
             const validAll = allTeamIds.filter(tid => typeof yearData[tid] === 'number');
             if (validAll.length > 0) {
               const avg = validAll.reduce((acc, tid) => acc + (yearData[tid] as number), 0) / validAll.length;
-              entry[`${year}년 생산팀`] = parseFloat(avg.toFixed(1));
+              entry[`${year % 100}년 생산팀`] = parseFloat(avg.toFixed(1));
             }
           }
         });
@@ -408,7 +408,7 @@ export default function App() {
       const opacity = YEAR_OPACITY[year] ?? 1.0;
       if (showTeamAverage) {
         keys.push({
-          key: `${year}년 생산팀`,
+          key: `${year % 100}년 생산팀`,
           color: AVERAGE_COLOR,
           dash: YEAR_DASH_PATTERNS[year] || '',
           opacity,
@@ -416,7 +416,7 @@ export default function App() {
       }
       selectedTeams.forEach(tid => {
         keys.push({
-          key: `${year}년 ${TEAM_NAMES[tid]}`,
+          key: `${year % 100}년 ${TEAM_NAMES[tid]}`,
           color: TEAM_STROKE_COLORS[tid],
           dash: YEAR_DASH_PATTERNS[year] || '',
           opacity,
