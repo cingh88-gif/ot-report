@@ -383,25 +383,35 @@ export default function App() {
     team3: '#16A34A', // green
   };
   const YEAR_DASH_PATTERNS: Record<number, string> = {};
-  // Oldest years get dashes, latest is solid
+  const YEAR_OPACITY: Record<number, number> = {};
+  // 최신 연도 → 실선+진한색, 오래된 연도 → 촘촘한 점선+연한색
   availableYears.forEach((year, i) => {
-    if (i < availableYears.length - 1) {
-      YEAR_DASH_PATTERNS[year] = `${6 - i * 2} ${3}`;
+    const reverseIdx = availableYears.length - 1 - i; // 0=최신, 1,2,3=오래됨
+    if (reverseIdx === 0) {
+      YEAR_DASH_PATTERNS[year] = ''; // 실선
+      YEAR_OPACITY[year] = 1.0;
     } else {
-      YEAR_DASH_PATTERNS[year] = '';
+      // 오래될수록 촘촘한 점선 (dash와 gap 모두 작게)
+      const dash = Math.max(2, 8 - reverseIdx * 2);
+      const gap = Math.max(2, 5 - reverseIdx);
+      YEAR_DASH_PATTERNS[year] = `${dash} ${gap}`;
+      // 오래될수록 연한 색
+      YEAR_OPACITY[year] = Math.max(0.25, 1.0 - reverseIdx * 0.25);
     }
   });
 
   const AVERAGE_COLOR = '#F59E0B'; // amber
 
   const trendLineKeys = useMemo(() => {
-    const keys: { key: string; color: string; dash: string }[] = [];
+    const keys: { key: string; color: string; dash: string; opacity: number }[] = [];
     selectedYears.forEach(year => {
+      const opacity = YEAR_OPACITY[year] ?? 1.0;
       if (showTeamAverage) {
         keys.push({
           key: `${year}년 생산팀`,
           color: AVERAGE_COLOR,
           dash: YEAR_DASH_PATTERNS[year] || '',
+          opacity,
         });
       }
       selectedTeams.forEach(tid => {
@@ -409,6 +419,7 @@ export default function App() {
           key: `${year}년 ${TEAM_NAMES[tid]}`,
           color: TEAM_STROKE_COLORS[tid],
           dash: YEAR_DASH_PATTERNS[year] || '',
+          opacity,
         });
       });
     });
@@ -869,15 +880,16 @@ export default function App() {
                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                   />
                   <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px', fontSize: '11px', fontWeight: 600 }} />
-                  {trendLineKeys.map(({ key, color, dash }) => (
+                  {trendLineKeys.map(({ key, color, dash, opacity }) => (
                     <Line
                       key={key}
                       type="monotone"
                       dataKey={key}
                       stroke={color}
-                      strokeWidth={2.5}
+                      strokeWidth={opacity >= 1 ? 2.5 : 2}
                       strokeDasharray={dash}
-                      dot={{ r: 3, fill: color, strokeWidth: 2, stroke: '#fff' }}
+                      strokeOpacity={opacity}
+                      dot={{ r: 3, fill: color, strokeWidth: 2, stroke: '#fff', fillOpacity: opacity, strokeOpacity: opacity }}
                       activeDot={{ r: 5, strokeWidth: 0 }}
                       animationDuration={1000}
                     />
