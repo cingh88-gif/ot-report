@@ -907,7 +907,15 @@ export default function App() {
                       );
                     }}
                   />
-                  <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px', fontSize: '11px', fontWeight: 600 }} />
+                  <Legend
+                    iconType="circle"
+                    wrapperStyle={{ paddingTop: '20px', fontSize: '11px', fontWeight: 600 }}
+                    formatter={(value: string) => {
+                      const entry = trendLineKeys.find(k => k.key === value);
+                      const op = entry?.opacity ?? 1;
+                      return <span style={{ color: entry?.color, opacity: op }}>{value}</span>;
+                    }}
+                  />
                   {trendLineKeys.map(({ key, color, dash, opacity }) => (
                     <Line
                       key={key}
