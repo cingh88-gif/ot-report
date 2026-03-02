@@ -1,0 +1,5 @@
+{
+  "name": "생산본부 주간 경영 보고 시스템",
+  "description": "생산팀별 인력 운영 현황 및 효율 지표를 분석하여 임원 보고용 대시보드를 제공합니다.",
+  "requestFramePermissions": []
+}
