@@ -448,7 +448,7 @@ export default function App() {
       {/* Sidebar - Simplified */}
       <aside className="w-64 bg-white border-r border-slate-200 flex flex-col">
         <div className="p-6 border-bottom border-slate-100">
-          <div className="flex items-center gap-2 text-indigo-600 font-bold text-xl">
+          <div className="flex items-center gap-2 text-indigo-600 font-bold text-lg whitespace-nowrap">
             <LayoutDashboard size={24} />
             <span>생산팀 OT 주간 보고</span>
           </div>
@@ -527,7 +527,7 @@ export default function App() {
 
         <div className="space-y-8">
           {/* Year Selection & Trend Chart */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm w-[1204px]">
             <div className="flex flex-col gap-6 mb-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
@@ -596,8 +596,8 @@ export default function App() {
               </div>
             </div>
             
-            <div className="h-[350px] w-[1200px] overflow-x-auto">
-              <ResponsiveContainer width={1200} height={350}>
+            <div className="h-[350px] w-full">
+              <ResponsiveContainer width="100%" height={350}>
                 <LineChart data={trendChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis 
@@ -731,7 +731,7 @@ export default function App() {
           </div>
 
           {/* Team Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-[1204px]">
             {(Object.keys(TEAM_NAMES) as TeamId[]).map((teamId) => (
               <div key={teamId} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm flex flex-col">
                 <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
@@ -777,7 +777,7 @@ export default function App() {
           </div>
 
           {/* Detailed Table */}
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm w-[1204px]">
             <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
               <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">전사 파트별 상세 비교 데이터</h2>
             </div>
