@@ -26,6 +26,7 @@ import {
   buildHistoricalTrendData,
   buildWeeklyCsvData,
   extractWeekData,
+  findLatestWeek,
   findPreviousWeek,
   PreviousWeekResult,
 } from './csvUtils';
@@ -133,20 +134,25 @@ export default function App() {
 
   // Auto-load CSV data on mount
   useEffect(() => {
-    fetch('/data.csv')
-      .then(res => res.text())
-      .then(csvText => {
+    const loadCsv = async () => {
+      try {
+        const res = await fetch('/data.csv');
+        const csvText = await res.text();
         const parseResult = Papa.parse(csvText, { header: true, skipEmptyLines: true });
         const rows = parseCsvRows(parseResult.data as Record<string, string>[]);
         if (rows.length === 0) return;
 
         const allData = buildAllCsvData(rows);
+        const weeklyData = buildWeeklyCsvData(rows);
         setAllCsvData(allData);
-        setWeeklyCsvData(buildWeeklyCsvData(rows));
+        setWeeklyCsvData(weeklyData);
         setHistoricalTrendData(buildHistoricalTrendData(allData));
         setSelectedYears(Object.keys(allData).map(Number).sort((a, b) => a - b).slice(-2));
-      })
-      .catch(() => {}); // fallback to mock data
+      } catch (err) {
+        console.error('[CSV-LOAD] error:', err);
+      }
+    };
+    loadCsv();
   }, []);
 
   // Update current/lastYear/projection data when reportDate or allCsvData changes
@@ -169,44 +175,33 @@ export default function App() {
     setLastYearData(deriveLastYearData(allCsvData, year, month));
     setProjectionData(deriveProjectionData(allCsvData, year, month));
 
-    // 전월 데이터 (0주차 fallback용)
+    // 전월 기본값
     let prevM = month - 1;
     let prevY = year;
     if (prevM < 1) { prevM = 12; prevY -= 1; }
     setPrevMonthData(extractPeriodData(allCsvData, prevY, prevM));
 
-    // Weekly CSV data for table-1
+    // Weekly data for table-1: 데이터 기준 최신 주차 탐색
     if (weeklyCsvData) {
-      const curWeekNum = getWeekOfMonth(reportDate, { weekStartsOn: 1 });
-      const curWeek = extractWeekData(weeklyCsvData, year, month, curWeekNum);
-      const prvWeekResult = curWeek ? findPreviousWeek(weeklyCsvData, year, month, curWeekNum) : null;
-      setCurrentWeekData(curWeek);
-      setPrevWeekData(prvWeekResult?.data ?? null);
-
-      if (curWeek) {
-        // 주간 데이터 있음 → 실제 주차 표시
-        setCurrentWeekInfo({ month, week: curWeekNum });
-        if (prvWeekResult) {
-          setPrevWeekInfo({ month: prvWeekResult.month, week: prvWeekResult.week });
-        } else if (curWeekNum > 1) {
-          setPrevWeekInfo({ month, week: curWeekNum - 1 });
-        } else {
-          const lastDay = lastDayOfMonth(new Date(prevY, prevM - 1));
-          const lastWeek = getWeekOfMonth(lastDay, { weekStartsOn: 1 });
-          setPrevWeekInfo({ month: prevM, week: lastWeek });
-        }
+      const latestWeek = findLatestWeek(weeklyCsvData, year, month);
+      if (latestWeek !== null) {
+        const curWeek = extractWeekData(weeklyCsvData, year, month, latestWeek);
+        const prvWeekResult = curWeek ? findPreviousWeek(weeklyCsvData, year, month, latestWeek) : null;
+        setCurrentWeekData(curWeek);
+        setCurrentWeekInfo({ month, week: latestWeek });
+        setPrevWeekData(prvWeekResult?.data ?? null);
+        setPrevWeekInfo(prvWeekResult ? { month: prvWeekResult.month, week: prvWeekResult.week } : null);
       } else {
-        // 주간 데이터 없음 (0주차) → 월 0주차로 표시
         setCurrentWeekData(null);
+        setCurrentWeekInfo(null);
         setPrevWeekData(null);
-        setCurrentWeekInfo({ month, week: 0 });
-        setPrevWeekInfo({ month: prevM, week: 0 });
+        setPrevWeekInfo(null);
       }
     } else {
       setCurrentWeekData(null);
+      setCurrentWeekInfo(null);
       setPrevWeekData(null);
-      setCurrentWeekInfo({ month, week: 0 });
-      setPrevWeekInfo({ month: prevM, week: 0 });
+      setPrevWeekInfo(null);
     }
   }, [reportDate, allCsvData, weeklyCsvData]);
 
@@ -425,12 +420,12 @@ export default function App() {
   const buildTable1Rows = (
     curData: Record<TeamId, Partial<Record<PartId, MetricData>>>,
     prevData: Record<TeamId, Partial<Record<PartId, MetricData>>>,
-    period: { year: number; month: number },
-    prevPeriod: { year: number; month: number },
-    isWeekly: boolean = false
+    period: { year: number; month: number; week: number },
+    prevPeriod: { year: number; month: number; week: number }
   ) => {
-    const curWD = isWeekly ? 5 : getWorkingDays(period.year, period.month);
-    const prevWD = isWeekly ? 5 : getWorkingDays(prevPeriod.year, prevPeriod.month);
+    // week > 0이면 주간(WD=5), week === 0이면 월간(해당 월 영업일수)
+    const curWD = period.week > 0 ? 5 : getWorkingDays(period.year, period.month);
+    const prevWD = prevPeriod.week > 0 ? 5 : getWorkingDays(prevPeriod.year, prevPeriod.month);
 
     return (Object.keys(TEAM_NAMES) as TeamId[]).map(teamId => {
       const parts = Object.keys(curData[teamId]) as PartId[];
@@ -555,13 +550,21 @@ export default function App() {
               </thead>
               <tbody>
                 ${(() => {
+                  if (currentWeekData && prevWeekData && currentWeekInfo && prevWeekInfo) {
+                    return buildTable1Rows(
+                      currentWeekData, prevWeekData,
+                      { ...displayPeriod, week: currentWeekInfo.week },
+                      { year: displayPeriod.year, month: prevWeekInfo.month, week: prevWeekInfo.week }
+                    );
+                  }
                   let pYear = displayPeriod.year;
                   let pMonth = displayPeriod.month - 1;
                   if (pMonth < 1) { pMonth = 12; pYear -= 1; }
-                  const prevPeriod = { year: pYear, month: pMonth };
-                  return currentWeekData && prevWeekData
-                    ? buildTable1Rows(currentWeekData, prevWeekData, displayPeriod, prevPeriod, true)
-                    : buildTable1Rows(currentData, prevMonthData, displayPeriod, prevPeriod);
+                  return buildTable1Rows(
+                    currentData, prevMonthData,
+                    { ...displayPeriod, week: 0 },
+                    { year: pYear, month: pMonth, week: 0 }
+                  );
                 })()}
               </tbody>
             </table>

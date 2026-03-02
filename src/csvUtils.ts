@@ -159,19 +159,19 @@ export function buildWeeklyCsvData(rows: CsvRow[]): WeeklyCsvData {
   const data: WeeklyCsvData = {};
 
   for (const row of rows) {
-    if (row.week <= 0) continue; // only week > 0
-
     const teamId = TEAM_NAME_TO_ID[row.teamName];
     const partId = PART_NAME_TO_ID[row.partName];
     if (!teamId || !partId) continue;
 
+    const week = row.week >= 0 ? row.week : 0;
+
     if (!data[row.year]) data[row.year] = {};
     if (!data[row.year][row.month]) data[row.year][row.month] = {};
-    if (!data[row.year][row.month][row.week]) data[row.year][row.month][row.week] = {} as any;
-    if (!data[row.year][row.month][row.week][teamId]) data[row.year][row.month][row.week][teamId] = {};
+    if (!data[row.year][row.month][week]) data[row.year][row.month][week] = {} as any;
+    if (!data[row.year][row.month][week][teamId]) data[row.year][row.month][week][teamId] = {};
 
     const hc = row.headcount || 1;
-    data[row.year][row.month][row.week][teamId][partId] = {
+    data[row.year][row.month][week][teamId][partId] = {
       headcount: row.headcount,
       workingHours: parseFloat((row.totalWorkingHours / hc).toFixed(1)),
       overtimeHours: parseFloat((row.totalOvertimeHours / hc).toFixed(1)),
@@ -179,6 +179,14 @@ export function buildWeeklyCsvData(rows: CsvRow[]): WeeklyCsvData {
   }
 
   return data;
+}
+
+/** 해당 월에서 가장 높은 주차 번호를 반환 (데이터 기준) */
+export function findLatestWeek(data: WeeklyCsvData, year: number, month: number): number | null {
+  const monthWeeks = data[year]?.[month];
+  if (!monthWeeks) return null;
+  const weeks = Object.keys(monthWeeks).map(Number);
+  return weeks.length > 0 ? Math.max(...weeks) : null;
 }
 
 export function extractWeekData(
@@ -220,13 +228,18 @@ export function findPreviousWeek(
   month: number,
   week: number
 ): PreviousWeekResult | null {
-  // Try previous week in same month
-  if (week > 1) {
-    const prev = extractWeekData(data, year, month, week - 1);
-    if (prev) return { data: prev, year, month, week: week - 1 };
+  // 같은 월 내에서 현재 주차보다 낮은 주차를 역순 탐색
+  const monthWeeks = data[year]?.[month];
+  if (monthWeeks) {
+    const lowerWeeks = Object.keys(monthWeeks).map(Number).filter(w => w < week).sort((a, b) => b - a);
+    if (lowerWeeks.length > 0) {
+      const prevWeek = lowerWeeks[0];
+      const result = extractWeekData(data, year, month, prevWeek);
+      if (result) return { data: result, year, month, week: prevWeek };
+    }
   }
 
-  // Cross month boundary: try previous month's highest week
+  // 같은 월에 없으면 → 이전 월의 가장 높은 주차
   let prevYear = year;
   let prevMonth = month - 1;
   if (prevMonth < 1) {
@@ -234,10 +247,10 @@ export function findPreviousWeek(
     prevYear -= 1;
   }
 
-  const monthWeeks = data[prevYear]?.[prevMonth];
-  if (!monthWeeks) return null;
+  const prevMonthWeeks = data[prevYear]?.[prevMonth];
+  if (!prevMonthWeeks) return null;
 
-  const maxWeek = Math.max(...Object.keys(monthWeeks).map(Number));
+  const maxWeek = Math.max(...Object.keys(prevMonthWeeks).map(Number));
   const result = extractWeekData(data, prevYear, prevMonth, maxWeek);
   return result ? { data: result, year: prevYear, month: prevMonth, week: maxWeek } : null;
 }
