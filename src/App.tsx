@@ -876,8 +876,36 @@ export default function App() {
                     tick={{ fill: '#64748b', fontSize: 11 }} 
                     unit="h"
                   />
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload || payload.length === 0) return null;
+                      // Group by team name: "25년 생산1팀" → team="생산1팀", year="25년"
+                      const teamMap: Record<string, { year: string; value: number; color: string }[]> = {};
+                      payload.forEach((p: any) => {
+                        if (p.value == null) return;
+                        const match = (p.name as string).match(/^(\d+년)\s+(.+)$/);
+                        if (!match) return;
+                        const [, yr, team] = match;
+                        if (!teamMap[team]) teamMap[team] = [];
+                        teamMap[team].push({ year: yr, value: p.value, color: p.color });
+                      });
+                      return (
+                        <div style={{ background: '#fff', borderRadius: 12, padding: '10px 14px', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: 12, lineHeight: 1.8 }}>
+                          <div style={{ fontWeight: 700, marginBottom: 4, color: '#334155' }}>{label}</div>
+                          {Object.entries(teamMap).map(([team, entries]) => (
+                            <div key={team} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <span style={{ color: entries[entries.length - 1].color, fontWeight: 600 }}>{team}:</span>
+                              {entries.map((e, i) => (
+                                <span key={i} style={{ color: '#475569' }}>
+                                  {i > 0 && <span style={{ margin: '0 2px', color: '#94a3b8' }}>{' → '}</span>}
+                                  {e.value}h<span style={{ fontSize: 10, color: '#94a3b8' }}>({e.year})</span>
+                                </span>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    }}
                   />
                   <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px', fontSize: '11px', fontWeight: 600 }} />
                   {trendLineKeys.map(({ key, color, dash, opacity }) => (
