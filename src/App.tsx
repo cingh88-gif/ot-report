@@ -50,43 +50,43 @@ const getWorkingDays = (year: number, month: number): number => {
 // Mock Initial Data
 const INITIAL_DATA: Record<TeamId, Partial<Record<PartId, MetricData>>> = {
   team1: {
-    manufacturing: { headcount: 24, workingHours: 40, overtimeHours: 8 },
+    manufacturing: { headcount: 100, workingHours: 40, overtimeHours: 8 },
   },
   team2: {
-    manufacturing: { headcount: 18, workingHours: 40, overtimeHours: 6 },
-    filling_molding: { headcount: 32, workingHours: 40, overtimeHours: 12 },
+    manufacturing: { headcount: 100, workingHours: 40, overtimeHours: 8 },
+    filling_molding: { headcount: 100, workingHours: 40, overtimeHours: 8 },
   },
   team3: {
-    manufacturing: { headcount: 15, workingHours: 40, overtimeHours: 4 },
-    filling_molding: { headcount: 28, workingHours: 40, overtimeHours: 10 },
+    manufacturing: { headcount: 100, workingHours: 40, overtimeHours: 8 },
+    filling_molding: { headcount: 100, workingHours: 40, overtimeHours: 8 },
   },
 };
 
 const LAST_YEAR_DATA: Record<TeamId, Partial<Record<PartId, MetricData>>> = {
   team1: {
-    manufacturing: { headcount: 22, workingHours: 40, overtimeHours: 5 },
+    manufacturing: { headcount: 110, workingHours: 40, overtimeHours: 5 },
   },
   team2: {
-    manufacturing: { headcount: 20, workingHours: 40, overtimeHours: 4 },
-    filling_molding: { headcount: 30, workingHours: 40, overtimeHours: 8 },
+    manufacturing: { headcount: 110, workingHours: 40, overtimeHours: 5 },
+    filling_molding: { headcount: 110, workingHours: 40, overtimeHours: 5 },
   },
   team3: {
-    manufacturing: { headcount: 14, workingHours: 40, overtimeHours: 3 },
-    filling_molding: { headcount: 25, workingHours: 40, overtimeHours: 7 },
+    manufacturing: { headcount: 110, workingHours: 40, overtimeHours: 5 },
+    filling_molding: { headcount: 110, workingHours: 40, overtimeHours: 5 },
   },
 };
 
 const PROJECTION_DATA: Record<TeamId, Partial<Record<PartId, MetricData>>> = {
   team1: {
-    manufacturing: { headcount: 25, workingHours: 40, overtimeHours: 7 },
+    manufacturing: { headcount: 100, workingHours: 40, overtimeHours: 8 },
   },
   team2: {
-    manufacturing: { headcount: 19, workingHours: 40, overtimeHours: 5 },
-    filling_molding: { headcount: 35, workingHours: 40, overtimeHours: 10 },
+    manufacturing: { headcount: 100, workingHours: 40, overtimeHours: 8 },
+    filling_molding: { headcount: 100, workingHours: 40, overtimeHours: 8 },
   },
   team3: {
-    manufacturing: { headcount: 16, workingHours: 40, overtimeHours: 5 },
-    filling_molding: { headcount: 30, workingHours: 40, overtimeHours: 9 },
+    manufacturing: { headcount: 100, workingHours: 40, overtimeHours: 8 },
+    filling_molding: { headcount: 100, workingHours: 40, overtimeHours: 8 },
   },
 };
 
