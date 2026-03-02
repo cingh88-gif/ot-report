@@ -423,9 +423,19 @@ export default function App() {
     period: { year: number; month: number; week: number },
     prevPeriod: { year: number; month: number; week: number }
   ) => {
-    // week > 0이면 주간(WD=5), week === 0이면 월간(해당 월 영업일수)
-    const curWD = period.week > 0 ? 5 : getWorkingDays(period.year, period.month);
-    const prevWD = prevPeriod.week > 0 ? 5 : getWorkingDays(prevPeriod.year, prevPeriod.month);
+    // 특정 주차 영업일수 예외값 (0주차가 월 전체가 아닌 경우)
+    const WEEK_WD_OVERRIDE: Record<string, number> = {
+      '2026-2-0': 12, // 2026년 2월 0주차: 2/1~2/22 (12영업일)
+    };
+
+    const getWeekWD = (p: { year: number; month: number; week: number }) => {
+      const key = `${p.year}-${p.month}-${p.week}`;
+      if (WEEK_WD_OVERRIDE[key]) return WEEK_WD_OVERRIDE[key];
+      return p.week > 0 ? 5 : getWorkingDays(p.year, p.month);
+    };
+
+    const curWD = getWeekWD(period);
+    const prevWD = getWeekWD(prevPeriod);
 
     return (Object.keys(TEAM_NAMES) as TeamId[]).map(teamId => {
       const parts = Object.keys(curData[teamId]) as PartId[];
