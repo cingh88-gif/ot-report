@@ -15,7 +15,16 @@ import { twMerge } from 'tailwind-merge';
 import Papa from 'papaparse';
 import { format, startOfWeek, endOfWeek, getWeekOfMonth } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { TeamId, PartId, TEAM_NAMES, PART_NAMES, MetricData } from './types';
+import { TeamId, PartId, TEAM_NAMES, PART_NAMES, MetricData, AllCsvData } from './types';
+import {
+  parseCsvRows,
+  buildAllCsvData,
+  findLatestPeriod,
+  extractPeriodData,
+  deriveProjectionData,
+  deriveLastYearData,
+  buildHistoricalTrendData,
+} from './csvUtils';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -89,6 +98,10 @@ const HISTORICAL_TREND_DATA = generateHistoricalData();
 
 export default function App() {
   const [currentData, setCurrentData] = useState(INITIAL_DATA);
+  const [allCsvData, setAllCsvData] = useState<AllCsvData | null>(null);
+  const [lastYearData, setLastYearData] = useState(LAST_YEAR_DATA);
+  const [projectionData, setProjectionData] = useState(PROJECTION_DATA);
+  const [historicalTrendData, setHistoricalTrendData] = useState(HISTORICAL_TREND_DATA);
   const [selectedYears, setSelectedYears] = useState<number[]>([2025, 2026]);
   const [selectedMonths, setSelectedMonths] = useState<number[]>(MONTHS);
   const [reportDate, setReportDate] = useState(new Date());
@@ -113,48 +126,80 @@ export default function App() {
     );
   };
 
+  const availableYears = useMemo(() => {
+    if (allCsvData) {
+      return Object.keys(allCsvData).map(Number).sort((a, b) => a - b);
+    }
+    return YEARS;
+  }, [allCsvData]);
+
+  const DYNAMIC_YEAR_COLORS = useMemo(() => {
+    const palette = ['#BDC3C7', '#7F8C8D', '#34495E', '#2980B9', '#8E44AD', '#27AE60', '#E67E22', '#E74C3C'];
+    const colors: Record<number, string> = {};
+    availableYears.forEach((year, i) => {
+      colors[year] = palette[i % palette.length];
+    });
+    // Override: make the latest year the accent color
+    if (availableYears.length > 0) {
+      colors[availableYears[availableYears.length - 1]] = '#2980B9';
+      if (availableYears.length > 1) {
+        colors[availableYears[availableYears.length - 2]] = '#34495E';
+      }
+    }
+    return colors;
+  }, [availableYears]);
+
   const handleCsvUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        const newData = JSON.parse(JSON.stringify(INITIAL_DATA));
-        let updatedCount = 0;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const buffer = e.target?.result as ArrayBuffer;
+      let csvText: string;
 
-        results.data.forEach((row: any) => {
-          const teamName = row['팀'] || row['Team'];
-          const partName = row['파트'] || row['Part'];
-          const headcount = parseFloat(row['평균인원'] || row['Headcount'] || '0');
-          const workingHours = parseFloat(row['근무시간'] || row['WorkingHours'] || '0');
-          const overtimeHours = parseFloat(row['잔업시간'] || row['OvertimeHours'] || '0');
-
-          const teamId = (Object.keys(TEAM_NAMES) as TeamId[]).find(id => TEAM_NAMES[id] === teamName);
-          const partId = (Object.keys(PART_NAMES) as PartId[]).find(id => PART_NAMES[id] === partName);
-
-          if (teamId && partId && newData[teamId] && newData[teamId][partId]) {
-            newData[teamId][partId] = {
-              headcount,
-              workingHours,
-              overtimeHours
-            };
-            updatedCount++;
-          }
-        });
-
-        if (updatedCount > 0) {
-          setCurrentData(newData);
-          alert(`${updatedCount}개의 데이터가 성공적으로 업로드되었습니다.`);
-        } else {
-          alert('업로드된 파일에서 유효한 데이터를 찾을 수 없습니다. 양식을 확인해주세요.');
+      // Try EUC-KR first, fallback to UTF-8
+      try {
+        csvText = new TextDecoder('euc-kr').decode(buffer);
+        // Verify: if the decoded text doesn't contain expected Korean chars, try UTF-8
+        if (!csvText.includes('팀') && !csvText.includes('파트')) {
+          csvText = new TextDecoder('utf-8').decode(buffer);
         }
-      },
-      error: (error) => {
-        alert(`CSV 파싱 중 오류가 발생했습니다: ${error.message}`);
+      } catch {
+        csvText = new TextDecoder('utf-8').decode(buffer);
       }
-    });
+
+      const parseResult = Papa.parse(csvText, {
+        header: true,
+        skipEmptyLines: true,
+      });
+
+      const rows = parseCsvRows(parseResult.data as Record<string, string>[]);
+      if (rows.length === 0) {
+        alert('업로드된 파일에서 유효한 데이터를 찾을 수 없습니다. 양식을 확인해주세요.');
+        return;
+      }
+
+      const allData = buildAllCsvData(rows);
+      const { year: latestYear, month: latestMonth } = findLatestPeriod(allData);
+
+      const currentPeriodData = extractPeriodData(allData, latestYear, latestMonth);
+      const lyData = deriveLastYearData(allData, latestYear, latestMonth);
+      const projData = deriveProjectionData(allData, latestYear, latestMonth);
+      const trendData = buildHistoricalTrendData(allData);
+      const years = Object.keys(allData).map(Number).sort((a, b) => a - b);
+
+      setAllCsvData(allData);
+      setCurrentData(currentPeriodData);
+      setLastYearData(lyData);
+      setProjectionData(projData);
+      setHistoricalTrendData(trendData);
+      setSelectedYears(years.slice(-2)); // Select last 2 years by default
+
+      alert(`${rows.length}건의 데이터가 업로드되었습니다. (최신: ${latestYear}년 ${latestMonth}월)`);
+    };
+
+    reader.readAsArrayBuffer(file);
   };
 
   const handleInputChange = (teamId: TeamId, partId: PartId, field: keyof MetricData, value: string) => {
@@ -181,15 +226,13 @@ export default function App() {
     (Object.keys(TEAM_NAMES) as TeamId[]).forEach((teamId) => {
       const tName = TEAM_NAMES[teamId];
       const teamParts = currentData[teamId];
-      
+
       (Object.keys(teamParts) as PartId[]).forEach((partId) => {
         const metrics = teamParts[partId];
         if (!metrics) return;
-        
-        const ly = LAST_YEAR_DATA[teamId][partId];
-        const proj = PROJECTION_DATA[teamId][partId];
-        
-        if (!ly || !proj) return;
+
+        const ly = lastYearData[teamId]?.[partId] || { headcount: 0, workingHours: 0, overtimeHours: 0 };
+        const proj = projectionData[teamId]?.[partId] || { headcount: 0, workingHours: 0, overtimeHours: 0 };
 
         data.push({
           name: `${tName} (${PART_NAMES[partId]})`,
@@ -206,7 +249,7 @@ export default function App() {
       });
     });
     return data;
-  }, [currentData]);
+  }, [currentData, lastYearData, projectionData]);
 
   // Combine historical data for selected years into a single array for the trend chart
   const trendChartData = useMemo(() => {
@@ -216,21 +259,21 @@ export default function App() {
         const monthName = `${monthIdx}월`;
         const entry: any = { name: monthName };
         selectedYears.forEach(year => {
-          const yearData = HISTORICAL_TREND_DATA[year][monthIdx - 1];
-          const teamIds = Object.keys(TEAM_NAMES);
-          const avgOvertime = teamIds.reduce((acc, teamId) => acc + yearData[teamId], 0) / teamIds.length;
+          const yearArr = historicalTrendData[year];
+          if (!yearArr) return;
+          const yearData = yearArr[monthIdx - 1];
+          if (!yearData) return;
+          const teamIds = Object.keys(TEAM_NAMES) as TeamId[];
+          const validTeams = teamIds.filter(tid => typeof yearData[tid] === 'number');
+          if (validTeams.length === 0) return;
+          const avgOvertime = validTeams.reduce((acc, tid) => acc + (yearData[tid] as number), 0) / validTeams.length;
           entry[`${year}년`] = parseFloat(avgOvertime.toFixed(1));
         });
         return entry;
       });
-  }, [selectedYears, selectedMonths]);
+  }, [selectedYears, selectedMonths, historicalTrendData]);
 
-  const YEAR_COLORS: Record<number, string> = {
-    2023: '#BDC3C7', // 3년 전 (과거 2)
-    2024: '#7F8C8D', // 재작년 (과거 1)
-    2025: '#34495E', // 작년 (서브 강조)
-    2026: '#2980B9', // 올해 (강조 포인트 컬러)
-  };
+  const YEAR_COLORS = DYNAMIC_YEAR_COLORS;
 
   const generateReport = () => {
     const reportWindow = window.open('', '_blank', 'width=1000,height=1200');
@@ -326,7 +369,7 @@ export default function App() {
                   const parts = Object.keys(currentData[teamId]) as PartId[];
                   return parts.map((partId, pIdx) => {
                     const curr = currentData[teamId][partId]!;
-                    const prev = LAST_YEAR_DATA[teamId][partId]!;
+                    const prev = (lastYearData[teamId]?.[partId]) || { headcount: 0, workingHours: 0, overtimeHours: 0 };
                     
                     const metrics = [
                       { label: '평균 인원(명)', key: 'headcount' as const },
@@ -373,7 +416,7 @@ export default function App() {
                   const parts = Object.keys(currentData[teamId]) as PartId[];
                   return parts.map((partId, pIdx) => {
                     const curr = currentData[teamId][partId]!;
-                    const proj = PROJECTION_DATA[teamId][partId]!;
+                    const proj = (projectionData[teamId]?.[partId]) || { headcount: 0, workingHours: 0, overtimeHours: 0 };
                     
                     const metrics = [
                       { label: '평균 인원(명)', c: curr.headcount, p: proj.headcount },
@@ -538,7 +581,7 @@ export default function App() {
                   <div className="flex items-center gap-2 px-3 border-r border-slate-200 mr-1">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">연도</span>
                   </div>
-                  {YEARS.map(year => (
+                  {availableYears.map(year => (
                     <label key={year} className="flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-all hover:bg-white hover:shadow-sm group">
                       <input 
                         type="checkbox" 
@@ -684,13 +727,13 @@ export default function App() {
                     : 0;
                   
                   // Monthly Average (from Projection Data)
-                  const projTeamParts = Object.values(PROJECTION_DATA[teamId]) as (MetricData | undefined)[];
+                  const projTeamParts = Object.values(projectionData[teamId] || {}) as (MetricData | undefined)[];
                   const projAvgOvertime = projTeamParts.length > 0
                     ? projTeamParts.reduce((acc, curr) => acc + (curr?.overtimeHours || 0), 0) / projTeamParts.length
                     : 0;
-                  
+
                   // Last Year
-                  const lyTeamParts = Object.values(LAST_YEAR_DATA[teamId]) as (MetricData | undefined)[];
+                  const lyTeamParts = Object.values(lastYearData[teamId] || {}) as (MetricData | undefined)[];
                   const lyAvgOvertime = lyTeamParts.length > 0
                     ? lyTeamParts.reduce((acc, curr) => acc + (curr?.overtimeHours || 0), 0) / lyTeamParts.length
                     : 0;

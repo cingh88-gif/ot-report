@@ -32,3 +32,16 @@ export const PART_NAMES: Record<PartId, string> = {
   manufacturing: '제조',
   filling_molding: '충전/성형',
 };
+
+export interface CsvRow {
+  teamName: string;
+  partName: string;
+  year: number;
+  month: number;
+  week: number;
+  headcount: number;
+  totalWorkingHours: number;
+  totalOvertimeHours: number;
+}
+
+export type AllCsvData = Record<number, Record<number, Record<TeamId, Partial<Record<PartId, MetricData>>>>>;
