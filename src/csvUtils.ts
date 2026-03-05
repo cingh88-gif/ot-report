@@ -297,15 +297,25 @@ export function deriveMonthlyProjection(
 
   if (!monthWeeks) return result;
 
-  // 0주차 제외, 1~N주차만 대상
+  // 실제 주차(1~N)만 추출
   const availableWeeks = Object.keys(monthWeeks)
     .map(Number)
     .filter(w => w > 0)
     .sort((a, b) => a - b);
 
-  if (availableWeeks.length === 0) return result;
+  const hasWeek0 = monthWeeks[0] !== undefined;
 
-  const latestWeek = availableWeeks[availableWeeks.length - 1];
+  if (availableWeeks.length === 0 && !hasWeek0) return result;
+
+  const latestWeek = availableWeeks.length > 0
+    ? availableWeeks[availableWeeks.length - 1]
+    : 0;
+
+  // 0주차가 커버하는 주차 수: 가장 작은 실제 주차 - 1
+  // 예) availableWeeks=[4] → coveredWeeks=3 (0주차가 1~3주 누적)
+  const coveredWeeks = hasWeek0 && availableWeeks.length > 0
+    ? Math.max(availableWeeks[0] - 1, 0)
+    : 0;
 
   // 팀/파트별 주차 데이터 수집
   const teamIds = Object.keys(TEAM_NAMES) as TeamId[];
@@ -317,10 +327,30 @@ export function deriveMonthlyProjection(
       headcountCount: number;
     }> = {};
 
-    for (let w = 1; w <= totalWeeks; w++) {
-      // 데이터가 있는 주차는 실제값, 없으면 최신 주차 데이터로 대체
-      const sourceWeek = availableWeeks.includes(w) ? w : latestWeek;
-      const weekData = monthWeeks[sourceWeek]?.[teamId];
+    // 1) 0주차 데이터 합산 (누적 데이터)
+    if (hasWeek0) {
+      const week0Data = monthWeeks[0]?.[teamId];
+      if (week0Data) {
+        for (const partId of Object.keys(week0Data) as PartId[]) {
+          const m = week0Data[partId];
+          if (!m) continue;
+
+          if (!partAccum[partId]) {
+            partAccum[partId] = { totalWorkingHours: 0, totalOvertimeHours: 0, headcountSum: 0, headcountCount: 0 };
+          }
+
+          partAccum[partId].totalWorkingHours += (m.totalWorkingHours ?? m.workingHours * m.headcount);
+          partAccum[partId].totalOvertimeHours += (m.totalOvertimeHours ?? m.overtimeHours * m.headcount);
+          // 0주차는 coveredWeeks 주 분량이므로 headcount 가중치 적용
+          partAccum[partId].headcountSum += m.headcount * coveredWeeks;
+          partAccum[partId].headcountCount += coveredWeeks;
+        }
+      }
+    }
+
+    // 2) 실제 주차(1~N) 데이터 합산
+    for (const w of availableWeeks) {
+      const weekData = monthWeeks[w]?.[teamId];
       if (!weekData) continue;
 
       for (const partId of Object.keys(weekData) as PartId[]) {
@@ -335,6 +365,37 @@ export function deriveMonthlyProjection(
         partAccum[partId].totalOvertimeHours += (m.totalOvertimeHours ?? m.overtimeHours * m.headcount);
         partAccum[partId].headcountSum += m.headcount;
         partAccum[partId].headcountCount += 1;
+      }
+    }
+
+    // 3) 남은 주차(데이터 없는 주차)만 최신 주차로 대체
+    // 0주차가 커버한 주차 + 실제 주차 = 이미 커버된 주차
+    const coveredWeekNumbers = new Set<number>();
+    if (hasWeek0) {
+      for (let w = 1; w <= coveredWeeks; w++) coveredWeekNumbers.add(w);
+    }
+    for (const w of availableWeeks) coveredWeekNumbers.add(w);
+
+    if (latestWeek > 0) {
+      for (let w = 1; w <= totalWeeks; w++) {
+        if (coveredWeekNumbers.has(w)) continue;
+        // 남은 주차는 최신 주차 데이터로 대체
+        const weekData = monthWeeks[latestWeek]?.[teamId];
+        if (!weekData) continue;
+
+        for (const partId of Object.keys(weekData) as PartId[]) {
+          const m = weekData[partId];
+          if (!m) continue;
+
+          if (!partAccum[partId]) {
+            partAccum[partId] = { totalWorkingHours: 0, totalOvertimeHours: 0, headcountSum: 0, headcountCount: 0 };
+          }
+
+          partAccum[partId].totalWorkingHours += (m.totalWorkingHours ?? m.workingHours * m.headcount);
+          partAccum[partId].totalOvertimeHours += (m.totalOvertimeHours ?? m.overtimeHours * m.headcount);
+          partAccum[partId].headcountSum += m.headcount;
+          partAccum[partId].headcountCount += 1;
+        }
       }
     }
 
