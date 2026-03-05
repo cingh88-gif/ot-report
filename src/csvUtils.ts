@@ -123,6 +123,50 @@ export function deriveLastYearData(
   return extractPeriodData(allData, year - 1, month);
 }
 
+export function deriveLastYearAvgData(
+  allData: AllCsvData,
+  year: number
+): Record<TeamId, Partial<Record<PartId, MetricData>>> {
+  const lastYear = year - 1;
+  const yearData = allData[lastYear];
+  const result: Record<TeamId, Partial<Record<PartId, MetricData>>> = {
+    team1: {}, team2: {}, team3: {},
+  };
+
+  if (!yearData) return result;
+
+  for (const teamId of Object.keys(TEAM_NAMES) as TeamId[]) {
+    const partAccum: Record<string, { headcount: number; workingHours: number; overtimeHours: number; count: number }> = {};
+
+    for (const monthKey of Object.keys(yearData)) {
+      const monthData = yearData[parseInt(monthKey, 10)];
+      if (!monthData || !monthData[teamId]) continue;
+      for (const partId of Object.keys(monthData[teamId]) as PartId[]) {
+        const m = monthData[teamId][partId];
+        if (!m) continue;
+        if (!partAccum[partId]) {
+          partAccum[partId] = { headcount: 0, workingHours: 0, overtimeHours: 0, count: 0 };
+        }
+        partAccum[partId].headcount += m.headcount;
+        partAccum[partId].workingHours += m.workingHours;
+        partAccum[partId].overtimeHours += m.overtimeHours;
+        partAccum[partId].count += 1;
+      }
+    }
+
+    for (const partId of Object.keys(partAccum) as PartId[]) {
+      const a = partAccum[partId];
+      result[teamId][partId] = {
+        headcount: parseFloat((a.headcount / a.count).toFixed(1)),
+        workingHours: parseFloat((a.workingHours / a.count).toFixed(1)),
+        overtimeHours: parseFloat((a.overtimeHours / a.count).toFixed(1)),
+      };
+    }
+  }
+
+  return result;
+}
+
 export function buildHistoricalTrendData(
   allData: AllCsvData
 ): Record<number, { month: string; [teamId: string]: number | string }[]> {

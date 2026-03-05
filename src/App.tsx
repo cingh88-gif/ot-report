@@ -23,6 +23,7 @@ import {
   extractPeriodData,
   deriveProjectionData,
   deriveLastYearData,
+  deriveLastYearAvgData,
   buildHistoricalTrendData,
   buildWeeklyCsvData,
   extractWeekData,
@@ -123,6 +124,7 @@ export default function App() {
   const [prevWeekInfo, setPrevWeekInfo] = useState<{ month: number; week: number } | null>(null);
   const [prevMonthData, setPrevMonthData] = useState(LAST_YEAR_DATA);
   const [lastYearData, setLastYearData] = useState(LAST_YEAR_DATA);
+  const [lastYearAvgData, setLastYearAvgData] = useState(LAST_YEAR_DATA);
   const [projectionData, setProjectionData] = useState(PROJECTION_DATA);
   const [historicalTrendData, setHistoricalTrendData] = useState(HISTORICAL_TREND_DATA);
   const [displayPeriod, setDisplayPeriod] = useState({ year: new Date().getFullYear(), month: new Date().getMonth() + 1 });
@@ -173,6 +175,7 @@ export default function App() {
     setDisplayPeriod({ year, month });
     setCurrentData(extractPeriodData(allCsvData, year, month));
     setLastYearData(deriveLastYearData(allCsvData, year, month));
+    setLastYearAvgData(deriveLastYearAvgData(allCsvData, year));
     setProjectionData(deriveProjectionData(allCsvData, year, month));
 
     // 전월 기본값
@@ -454,8 +457,8 @@ export default function App() {
         const curr = curData[teamId][partId]!;
         const prev = (prevData[teamId]?.[partId]) || { headcount: 0, workingHours: 0, overtimeHours: 0 };
 
-        const ly = lastYearData[teamId]?.[partId] || { headcount: 0, workingHours: 0, overtimeHours: 0 };
-        const lyWD = getWorkingDays(period.year - 1, period.month);
+        const ly = lastYearAvgData[teamId]?.[partId] || { headcount: 0, workingHours: 0, overtimeHours: 0 };
+        const lyWD = MONTHS.reduce((sum, m) => sum + getWorkingDays(period.year - 1, m), 0) / 12;
         const metrics = [
           { label: '평균 인원(명)', cVal: curr.headcount, pVal: prev.headcount, lyVal: ly.headcount },
           { label: '인당 평균 근무시간(h)', cVal: parseFloat((curr.workingHours / curWD).toFixed(1)), pVal: parseFloat((prev.workingHours / prevWD).toFixed(1)), lyVal: parseFloat((ly.workingHours / lyWD).toFixed(1)) },
@@ -613,7 +616,7 @@ export default function App() {
                   return parts.map((partId, pIdx) => {
                     const curr = currentData[teamId][partId]!;
                     const proj = (projectionData[teamId]?.[partId]) || { headcount: 0, workingHours: 0, overtimeHours: 0 };
-                    const ly = lastYearData[teamId]?.[partId] || { headcount: 0, workingHours: 0, overtimeHours: 0 };
+                    const ly = lastYearAvgData[teamId]?.[partId] || { headcount: 0, workingHours: 0, overtimeHours: 0 };
 
                     const metrics = [
                       { label: '평균 인원(명)', c: curr.headcount, p: proj.headcount, lyVal: ly.headcount },
@@ -979,7 +982,12 @@ export default function App() {
                     <Bar dataKey="overtimeLY" fill="#cbd5e1" radius={[4, 4, 0, 0]} barSize={24} />
                     {chartData.length > 0 && (
                       <ReferenceLine
-                        y={chartData.reduce((sum, d) => sum + (d.overtimeLY || 0), 0) / chartData.length}
+                        y={(() => {
+                          const allParts = (Object.keys(TEAM_NAMES) as TeamId[]).flatMap(t =>
+                            Object.values(lastYearAvgData[t] || {}).filter(Boolean) as MetricData[]
+                          );
+                          return allParts.length > 0 ? allParts.reduce((s, p) => s + p.overtimeHours, 0) / allParts.length : 0;
+                        })()}
                         stroke="#fbbf24"
                         strokeWidth={2}
                         strokeDasharray="6 3"
