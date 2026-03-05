@@ -4,8 +4,8 @@ import {
   LineChart, Line, ComposedChart, Cell
 } from 'recharts';
 import { 
-  TrendingUp, TrendingDown, Users, Clock, AlertCircle, 
-  ChevronRight, LayoutDashboard, FileText, Settings, 
+  TrendingUp, TrendingDown, Users, Clock, AlertCircle,
+  ChevronRight, LayoutDashboard, Settings,
   Plus, Save, Calendar, ArrowUpRight, ArrowDownRight,
   Upload
 } from 'lucide-react';
@@ -708,31 +708,32 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
-      {/* Sidebar - Simplified */}
-      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col">
-        <div className="p-6 border-bottom border-slate-100">
-          <div className="flex items-center gap-2 text-indigo-600 font-bold text-lg whitespace-nowrap">
-            <LayoutDashboard size={24} />
-            <span>생산팀 OT 주간 보고</span>
-          </div>
-          <p className="text-xs text-slate-400 mt-1 uppercase tracking-wider font-semibold">Executive Dashboard</p>
+      {/* Sidebar - 코스맥스 메뉴 스타일 */}
+      <aside className="w-56 flex flex-col bg-white border-r border-slate-200">
+        {/* 로고 + 타이틀 */}
+        <div className="px-4 py-4 border-b border-slate-100">
+          <img src="/cosmax-logo.jpg" alt="COSMAX" className="h-5 mb-2" />
+          <div className="text-xs font-medium text-slate-500">생산팀 OT 주간보고</div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-3 mb-2">Main Menu</div>
-          <SidebarItem icon={<FileText size={18} />} label="전체 현황판" active />
+        {/* 메뉴 영역 */}
+        <nav className="flex-1 px-3 pt-3 space-y-1 overflow-y-auto">
+          {/* 전체 현황판 - 활성 메뉴 (빨간색) */}
+          <button className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-bold text-white" style={{ backgroundColor: '#E8474C' }}>
+            <LayoutDashboard size={16} />
+            <span>전체 현황판</span>
+          </button>
         </nav>
 
-        <div className="p-4 border-t border-slate-100">
-          <div className="bg-slate-900 rounded-xl p-4 text-white">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs font-medium opacity-80">System Live</span>
-            </div>
-            <p className="text-[10px] opacity-60 leading-relaxed">
-              근무시간 및 잔업 관리에 집중된 통합 대시보드입니다.
-            </p>
+        {/* 하단 정보 */}
+        <div className="px-4 py-3 border-t border-slate-100">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[10px] font-medium text-slate-500">System Live</span>
           </div>
+          <p className="text-[9px] text-slate-400 leading-relaxed">
+            근무시간 및 잔업 관리에 집중된 통합 대시보드입니다.
+          </p>
         </div>
       </aside>
 
@@ -781,7 +782,7 @@ export default function App() {
               <Plus size={16} />
               보고서 생성
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 rounded-lg text-sm font-medium text-white hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200">
+            <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors shadow-lg" style={{ backgroundColor: '#E8474C', boxShadow: '0 4px 6px -1px rgba(232,71,76,0.3)' }}>
               <Save size={16} />
               전체 저장
             </button>
