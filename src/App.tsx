@@ -632,17 +632,19 @@ export default function App() {
               </thead>
               <tbody>
                 ${(Object.keys(TEAM_NAMES) as TeamId[]).map(teamId => {
-                  const parts = Object.keys(currentData[teamId]) as PartId[];
+                  const projParts = Object.keys(projectionData[teamId] || {}) as PartId[];
+                  const prevParts = Object.keys(prevMonthData[teamId] || {}) as PartId[];
+                  const parts = [...new Set([...projParts, ...prevParts])];
                   return parts.map((partId, pIdx) => {
-                    const curr = currentData[teamId][partId]!;
-                    const proj = (projectionData[teamId]?.[partId]) || { headcount: 0, workingHours: 0, overtimeHours: 0 };
+                    const proj = (projectionData[teamId]?.[partId]) || { headcount: 0, workingHours: 0, overtimeHours: 0, totalWorkingHours: 0, totalOvertimeHours: 0 };
+                    const prev = (prevMonthData[teamId]?.[partId]) || { headcount: 0, workingHours: 0, overtimeHours: 0, totalWorkingHours: 0, totalOvertimeHours: 0 };
                     const ly = lastYearAvgData[teamId]?.[partId] || { headcount: 0, workingHours: 0, overtimeHours: 0 };
 
                     const metrics = [
-                      { label: '평균 인원(명)', c: curr.headcount, p: proj.headcount, lyVal: ly.headcount },
-                      { label: '총 근무시간(h)', c: curr.totalWorkingHours ?? Math.round(curr.headcount * curr.workingHours), p: proj.totalWorkingHours ?? Math.round(proj.headcount * proj.workingHours), lyVal: Math.round(ly.headcount * ly.workingHours) },
-                      { label: '총 잔업시간(h)', c: curr.totalOvertimeHours ?? Math.round(curr.headcount * curr.overtimeHours), p: proj.totalOvertimeHours ?? Math.round(proj.headcount * proj.overtimeHours), lyVal: Math.round(ly.headcount * ly.overtimeHours) },
-                      { label: '인당 평균 잔업시간(h)', c: curr.overtimeHours, p: proj.overtimeHours, lyVal: ly.overtimeHours }
+                      { label: '평균 인원(명)', c: proj.headcount, p: prev.headcount, lyVal: ly.headcount },
+                      { label: '총 근무시간(h)', c: proj.totalWorkingHours ?? Math.round(proj.headcount * proj.workingHours), p: prev.totalWorkingHours ?? Math.round(prev.headcount * prev.workingHours), lyVal: Math.round(ly.headcount * ly.workingHours) },
+                      { label: '총 잔업시간(h)', c: proj.totalOvertimeHours ?? Math.round(proj.headcount * proj.overtimeHours), p: prev.totalOvertimeHours ?? Math.round(prev.headcount * prev.overtimeHours), lyVal: Math.round(ly.headcount * ly.overtimeHours) },
+                      { label: '인당 평균 잔업시간(h)', c: proj.overtimeHours, p: prev.overtimeHours, lyVal: ly.overtimeHours }
                     ];
 
                     return metrics.map((m, mIdx) => {
