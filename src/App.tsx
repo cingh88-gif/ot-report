@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
-  LineChart, Line, ComposedChart, Cell
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  LineChart, Line, ComposedChart, Cell, ReferenceLine
 } from 'recharts';
 import { 
   TrendingUp, TrendingDown, Users, Clock, AlertCircle, 
@@ -454,10 +454,11 @@ export default function App() {
         const curr = curData[teamId][partId]!;
         const prev = (prevData[teamId]?.[partId]) || { headcount: 0, workingHours: 0, overtimeHours: 0 };
 
+        const ly = lastYearData[teamId]?.[partId] || { headcount: 0, workingHours: 0, overtimeHours: 0 };
         const metrics = [
-          { label: '평균 인원(명)', cVal: curr.headcount, pVal: prev.headcount },
-          { label: '인당 평균 근무시간(h)', cVal: parseFloat((curr.workingHours / curWD).toFixed(1)), pVal: parseFloat((prev.workingHours / prevWD).toFixed(1)) },
-          { label: '인당 평균 잔업시간(h)', cVal: parseFloat((curr.overtimeHours / curWD).toFixed(1)), pVal: parseFloat((prev.overtimeHours / prevWD).toFixed(1)) },
+          { label: '평균 인원(명)', cVal: curr.headcount, pVal: prev.headcount, lyVal: ly.headcount },
+          { label: '인당 평균 근무시간(h)', cVal: parseFloat((curr.workingHours / curWD).toFixed(1)), pVal: parseFloat((prev.workingHours / prevWD).toFixed(1)), lyVal: ly.workingHours },
+          { label: '인당 평균 잔업시간(h)', cVal: parseFloat((curr.overtimeHours / curWD).toFixed(1)), pVal: parseFloat((prev.overtimeHours / prevWD).toFixed(1)), lyVal: ly.overtimeHours },
         ];
 
         return metrics.map((m, mIdx) => {
@@ -471,6 +472,7 @@ export default function App() {
             + rowspanTeam
             + rowspanPart
             + '<td>' + m.label + '</td>'
+            + '<td class="font-mono text-slate-400">' + m.lyVal + '</td>'
             + '<td class="font-mono base-val">' + m.pVal + '</td>'
             + '<td contenteditable="true" class="font-mono font-bold editable-cell ' + otClass + '">' + m.cVal + '</td>'
             + '<td class="font-mono growth-val ' + (isUp ? 'val-up' : 'val-down') + '">' + (isUp ? '▲' : '▼') + ' ' + Math.abs(parseFloat(diff)) + '%</td>'
@@ -510,9 +512,9 @@ export default function App() {
             td { border: 1px solid #cbd5e1; padding: 2px 4px; text-align: center; font-size: 9px; height: 20px; }
             
             /* Column Width Adjustments */
-            th:nth-child(1), td:nth-child(1) { width: 70px; } /* 팀구분 */
-            th:nth-child(2), td:nth-child(2) { width: 70px; } /* 파트 구분 */
-            th:nth-child(3), td:nth-child(3) { width: 140px; white-space: nowrap; } /* 구분 - No wrap */
+            th:nth-child(1), td:nth-child(1) { width: 60px; } /* 팀구분 */
+            th:nth-child(2), td:nth-child(2) { width: 60px; } /* 파트 구분 */
+            th:nth-child(3), td:nth-child(3) { width: 130px; white-space: nowrap; } /* 구분 - No wrap */
             
             .bg-group { background: #f8fafc; font-weight: 700; }
             .bg-subgroup { background: #ffffff; font-weight: 600; }
@@ -564,6 +566,7 @@ export default function App() {
                   <th>팀구분</th>
                   <th>파트 구분</th>
                   <th>구분</th>
+                  <th>전년 평균</th>
                   <th>전주(${prevWeekInfo ? `${prevWeekInfo.month}월 ${prevWeekInfo.week}주차` : ''})</th>
                   <th>금주(${currentWeekInfo ? `${currentWeekInfo.month}월 ${currentWeekInfo.week}주차` : ''})</th>
                   <th>증감율</th>
@@ -949,6 +952,10 @@ export default function App() {
                     <div className="w-3 h-3 rounded-sm bg-slate-300" />
                     <span className="text-slate-500">전년 동기</span>
                   </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-0.5 bg-amber-400" />
+                    <span className="text-slate-500">전년 평균</span>
+                  </div>
                 </div>
               </div>
               <div className="h-[300px] w-full">
@@ -966,6 +973,15 @@ export default function App() {
                     <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
                     <Bar dataKey="overtime" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={24} />
                     <Bar dataKey="overtimeLY" fill="#cbd5e1" radius={[4, 4, 0, 0]} barSize={24} />
+                    {chartData.length > 0 && (
+                      <ReferenceLine
+                        y={chartData.reduce((sum, d) => sum + (d.overtimeLY || 0), 0) / chartData.length}
+                        stroke="#fbbf24"
+                        strokeWidth={2}
+                        strokeDasharray="6 3"
+                        label={{ value: '전년 평균', position: 'right', fill: '#fbbf24', fontSize: 11 }}
+                      />
+                    )}
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
