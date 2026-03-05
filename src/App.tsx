@@ -177,13 +177,23 @@ export default function App() {
     setCurrentData(extractPeriodData(allCsvData, year, month));
     setLastYearData(deriveLastYearData(allCsvData, year, month));
     setLastYearAvgData(deriveLastYearAvgData(allCsvData, year));
-    // 당월 예상: weeklyCsvData에 해당 월 데이터가 있으면 주차 합산 기반, 없으면 전월 데이터
+    // 당월 예상: 해당 월의 주차 데이터로 합산, 없으면 전월 주차 합산, 최종 폴백은 전월 월간
     const monthWeeks = weeklyCsvData?.[year]?.[month];
     const hasWeeklyData = monthWeeks && Object.keys(monthWeeks).some(w => Number(w) > 0);
     if (hasWeeklyData) {
       setProjectionData(deriveMonthlyProjection(weeklyCsvData!, year, month));
     } else {
-      setProjectionData(deriveProjectionData(allCsvData, year, month));
+      // 전월 주차 데이터로 합산 시도
+      let prevY = year;
+      let prevM = month - 1;
+      if (prevM < 1) { prevM = 12; prevY -= 1; }
+      const prevMonthWeeks = weeklyCsvData?.[prevY]?.[prevM];
+      const hasPrevWeeklyData = prevMonthWeeks && Object.keys(prevMonthWeeks).some(w => Number(w) > 0);
+      if (hasPrevWeeklyData) {
+        setProjectionData(deriveMonthlyProjection(weeklyCsvData!, prevY, prevM));
+      } else {
+        setProjectionData(deriveProjectionData(allCsvData, year, month));
+      }
     }
 
     // 전월 기본값
