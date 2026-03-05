@@ -490,7 +490,7 @@ export default function App() {
           const isUp = m.cVal > m.pVal;
           const rowspanTeam = pIdx === 0 && mIdx === 0 ? '<td rowspan="' + (parts.length * 3) + '" class="bg-group">' + TEAM_NAMES[teamId] + '</td>' : '';
           const rowspanPart = mIdx === 0 ? '<td rowspan="3" class="bg-subgroup">' + PART_NAMES[partId] + '</td>' : '';
-          const otClass = m.label.includes('잔업') && m.cVal > 2 ? 'text-rose-500' : '';
+          const otClass = isUp ? 'text-rose-500' : '';
 
           return '<tr class="data-row">'
             + rowspanTeam
@@ -658,7 +658,7 @@ export default function App() {
                           <td>${m.label}</td>
                           <td class="font-mono text-slate-400">${m.lyVal.toLocaleString()}</td>
                           <td class="font-mono base-val">${m.p.toLocaleString()}</td>
-                          <td contenteditable="true" class="font-mono font-bold editable-cell ${m.label.includes('잔업') && m.c > m.p ? 'text-rose-500' : ''}">${m.c.toLocaleString()}</td>
+                          <td contenteditable="true" class="font-mono font-bold editable-cell ${isUp ? 'text-rose-500' : ''}">${m.c.toLocaleString()}</td>
                           <td class="font-mono growth-val ${isUp ? 'val-up' : 'val-down'}">${isUp ? '▲' : '▼'} ${Math.abs(parseFloat(diff))}%</td>
                         </tr>
                       `;
