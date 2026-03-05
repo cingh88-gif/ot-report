@@ -455,10 +455,11 @@ export default function App() {
         const prev = (prevData[teamId]?.[partId]) || { headcount: 0, workingHours: 0, overtimeHours: 0 };
 
         const ly = lastYearData[teamId]?.[partId] || { headcount: 0, workingHours: 0, overtimeHours: 0 };
+        const lyWD = getWorkingDays(period.year - 1, period.month);
         const metrics = [
           { label: '평균 인원(명)', cVal: curr.headcount, pVal: prev.headcount, lyVal: ly.headcount },
-          { label: '인당 평균 근무시간(h)', cVal: parseFloat((curr.workingHours / curWD).toFixed(1)), pVal: parseFloat((prev.workingHours / prevWD).toFixed(1)), lyVal: ly.workingHours },
-          { label: '인당 평균 잔업시간(h)', cVal: parseFloat((curr.overtimeHours / curWD).toFixed(1)), pVal: parseFloat((prev.overtimeHours / prevWD).toFixed(1)), lyVal: ly.overtimeHours },
+          { label: '인당 평균 근무시간(h)', cVal: parseFloat((curr.workingHours / curWD).toFixed(1)), pVal: parseFloat((prev.workingHours / prevWD).toFixed(1)), lyVal: parseFloat((ly.workingHours / lyWD).toFixed(1)) },
+          { label: '인당 평균 잔업시간(h)', cVal: parseFloat((curr.overtimeHours / curWD).toFixed(1)), pVal: parseFloat((prev.overtimeHours / prevWD).toFixed(1)), lyVal: parseFloat((ly.overtimeHours / lyWD).toFixed(1)) },
         ];
 
         return metrics.map((m, mIdx) => {
