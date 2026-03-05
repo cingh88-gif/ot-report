@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  LineChart, Line, ComposedChart, Cell, ReferenceLine
+  LineChart, Line, ComposedChart, Cell
 } from 'recharts';
 import { 
   TrendingUp, TrendingDown, Users, Clock, AlertCircle, 
@@ -349,6 +349,7 @@ export default function App() {
           headcountLY: ly.headcount,
           overtime: metrics.overtimeHours,
           overtimeLY: ly.overtimeHours,
+          overtimeAvgLY: ly.overtimeHours,
           working: metrics.workingHours,
           workingLY: ly.workingHours,
         });
@@ -968,7 +969,11 @@ export default function App() {
                     <span className="text-slate-500">전년 동기</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-0.5 bg-amber-400" />
+                    <svg width="20" height="12" className="flex-shrink-0">
+                      <line x1="0" y1="6" x2="7" y2="6" stroke="#fbbf24" strokeWidth="2" strokeDasharray="3 2" />
+                      <circle cx="10" cy="6" r="3" fill="#fbbf24" />
+                      <line x1="13" y1="6" x2="20" y2="6" stroke="#fbbf24" strokeWidth="2" strokeDasharray="3 2" />
+                    </svg>
                     <span className="text-slate-500">전년 평균</span>
                   </div>
                 </div>
@@ -988,20 +993,14 @@ export default function App() {
                     <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
                     <Bar dataKey="overtime" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={24} />
                     <Bar dataKey="overtimeLY" fill="#cbd5e1" radius={[4, 4, 0, 0]} barSize={24} />
-                    {chartData.length > 0 && (
-                      <ReferenceLine
-                        y={(() => {
-                          const allParts = (Object.keys(TEAM_NAMES) as TeamId[]).flatMap(t =>
-                            Object.values(lastYearAvgData[t] || {}).filter(Boolean) as MetricData[]
-                          );
-                          return allParts.length > 0 ? allParts.reduce((s, p) => s + p.overtimeHours, 0) / allParts.length : 0;
-                        })()}
-                        stroke="#fbbf24"
-                        strokeWidth={2}
-                        strokeDasharray="6 3"
-                        label={{ value: '전년 평균', position: 'right', fill: '#fbbf24', fontSize: 11 }}
-                      />
-                    )}
+                    <Line
+                      dataKey="overtimeAvgLY"
+                      type="monotone"
+                      stroke="#fbbf24"
+                      strokeWidth={2}
+                      strokeDasharray="6 3"
+                      dot={{ r: 4, fill: '#fbbf24', stroke: '#fbbf24' }}
+                    />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
