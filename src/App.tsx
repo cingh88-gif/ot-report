@@ -341,7 +341,7 @@ export default function App() {
         const metrics = teamParts[partId];
         if (!metrics) return;
 
-        const ly = lastYearData[teamId]?.[partId] || { headcount: 0, workingHours: 0, overtimeHours: 0 };
+        const ly = lastYearAvgData[teamId]?.[partId] || { headcount: 0, workingHours: 0, overtimeHours: 0 };
 
         data.push({
           name: `${tName} (${PART_NAMES[partId]})`,
@@ -355,7 +355,7 @@ export default function App() {
       });
     });
     return data;
-  }, [currentData, lastYearData]);
+  }, [currentData, lastYearAvgData]);
 
   // Combine historical data for selected years into a single array for the trend chart
   // Each line = year + team combination (e.g. "2025년 생산1팀")
