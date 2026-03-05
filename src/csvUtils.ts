@@ -270,6 +270,90 @@ export interface PreviousWeekResult {
   week: number;
 }
 
+/** 해당 월의 주차 수를 월요일 기준으로 계산 (= 해당 월에 포함된 월요일 수) */
+export function getWeeksInMonth(year: number, month: number): number {
+  // month: 1-based
+  const firstDay = new Date(year, month - 1, 1);
+  const lastDay = new Date(year, month, 0); // 해당 월 마지막 날
+  let count = 0;
+  for (let d = new Date(firstDay); d <= lastDay; d.setDate(d.getDate() + 1)) {
+    if (d.getDay() === 1) count++; // 월요일
+  }
+  return count;
+}
+
+/** 주차별 데이터를 합산하여 당월 예상값 산출 */
+export function deriveMonthlyProjection(
+  weeklyCsvData: WeeklyCsvData,
+  year: number,
+  month: number
+): Record<TeamId, Partial<Record<PartId, MetricData>>> {
+  const totalWeeks = getWeeksInMonth(year, month);
+  const monthWeeks = weeklyCsvData[year]?.[month];
+
+  const result: Record<TeamId, Partial<Record<PartId, MetricData>>> = {
+    team1: {}, team2: {}, team3: {},
+  };
+
+  if (!monthWeeks) return result;
+
+  // 0주차 제외, 1~N주차만 대상
+  const availableWeeks = Object.keys(monthWeeks)
+    .map(Number)
+    .filter(w => w > 0)
+    .sort((a, b) => a - b);
+
+  if (availableWeeks.length === 0) return result;
+
+  const latestWeek = availableWeeks[availableWeeks.length - 1];
+
+  // 팀/파트별 주차 데이터 수집
+  const teamIds = Object.keys(TEAM_NAMES) as TeamId[];
+  for (const teamId of teamIds) {
+    const partAccum: Record<string, {
+      totalWorkingHours: number;
+      totalOvertimeHours: number;
+      headcountSum: number;
+      headcountCount: number;
+    }> = {};
+
+    for (let w = 1; w <= totalWeeks; w++) {
+      // 데이터가 있는 주차는 실제값, 없으면 최신 주차 데이터로 대체
+      const sourceWeek = availableWeeks.includes(w) ? w : latestWeek;
+      const weekData = monthWeeks[sourceWeek]?.[teamId];
+      if (!weekData) continue;
+
+      for (const partId of Object.keys(weekData) as PartId[]) {
+        const m = weekData[partId];
+        if (!m) continue;
+
+        if (!partAccum[partId]) {
+          partAccum[partId] = { totalWorkingHours: 0, totalOvertimeHours: 0, headcountSum: 0, headcountCount: 0 };
+        }
+
+        partAccum[partId].totalWorkingHours += (m.totalWorkingHours ?? m.workingHours * m.headcount);
+        partAccum[partId].totalOvertimeHours += (m.totalOvertimeHours ?? m.overtimeHours * m.headcount);
+        partAccum[partId].headcountSum += m.headcount;
+        partAccum[partId].headcountCount += 1;
+      }
+    }
+
+    for (const partId of Object.keys(partAccum) as PartId[]) {
+      const a = partAccum[partId];
+      const avgHeadcount = a.headcountCount > 0 ? a.headcountSum / a.headcountCount : 1;
+      result[teamId][partId] = {
+        headcount: parseFloat(avgHeadcount.toFixed(1)),
+        totalWorkingHours: parseFloat(a.totalWorkingHours.toFixed(1)),
+        totalOvertimeHours: parseFloat(a.totalOvertimeHours.toFixed(1)),
+        workingHours: parseFloat((a.totalWorkingHours / avgHeadcount).toFixed(1)),
+        overtimeHours: parseFloat((a.totalOvertimeHours / avgHeadcount).toFixed(1)),
+      };
+    }
+  }
+
+  return result;
+}
+
 export function findPreviousWeek(
   data: WeeklyCsvData,
   year: number,

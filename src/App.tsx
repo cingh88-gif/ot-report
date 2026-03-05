@@ -22,6 +22,7 @@ import {
   findLatestPeriod,
   extractPeriodData,
   deriveProjectionData,
+  deriveMonthlyProjection,
   deriveLastYearData,
   deriveLastYearAvgData,
   buildHistoricalTrendData,
@@ -176,7 +177,14 @@ export default function App() {
     setCurrentData(extractPeriodData(allCsvData, year, month));
     setLastYearData(deriveLastYearData(allCsvData, year, month));
     setLastYearAvgData(deriveLastYearAvgData(allCsvData, year));
-    setProjectionData(deriveProjectionData(allCsvData, year, month));
+    // 당월 예상: weeklyCsvData에 해당 월 데이터가 있으면 주차 합산 기반, 없으면 전월 데이터
+    const monthWeeks = weeklyCsvData?.[year]?.[month];
+    const hasWeeklyData = monthWeeks && Object.keys(monthWeeks).some(w => Number(w) > 0);
+    if (hasWeeklyData) {
+      setProjectionData(deriveMonthlyProjection(weeklyCsvData!, year, month));
+    } else {
+      setProjectionData(deriveProjectionData(allCsvData, year, month));
+    }
 
     // 전월 기본값
     let prevM = month - 1;
