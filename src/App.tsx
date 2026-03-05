@@ -600,6 +600,7 @@ export default function App() {
                   <th>팀구분</th>
                   <th>파트 구분</th>
                   <th>구분</th>
+                  <th>전년 평균</th>
                   <th>전월</th>
                   <th>당월(예상)</th>
                   <th>증감율</th>
@@ -611,12 +612,13 @@ export default function App() {
                   return parts.map((partId, pIdx) => {
                     const curr = currentData[teamId][partId]!;
                     const proj = (projectionData[teamId]?.[partId]) || { headcount: 0, workingHours: 0, overtimeHours: 0 };
-                    
+                    const ly = lastYearData[teamId]?.[partId] || { headcount: 0, workingHours: 0, overtimeHours: 0 };
+
                     const metrics = [
-                      { label: '평균 인원(명)', c: curr.headcount, p: proj.headcount },
-                      { label: '총 근무시간(h)', c: curr.totalWorkingHours ?? Math.round(curr.headcount * curr.workingHours), p: proj.totalWorkingHours ?? Math.round(proj.headcount * proj.workingHours) },
-                      { label: '총 잔업시간(h)', c: curr.totalOvertimeHours ?? Math.round(curr.headcount * curr.overtimeHours), p: proj.totalOvertimeHours ?? Math.round(proj.headcount * proj.overtimeHours) },
-                      { label: '인당 평균 잔업시간(h)', c: curr.overtimeHours, p: proj.overtimeHours }
+                      { label: '평균 인원(명)', c: curr.headcount, p: proj.headcount, lyVal: ly.headcount },
+                      { label: '총 근무시간(h)', c: curr.totalWorkingHours ?? Math.round(curr.headcount * curr.workingHours), p: proj.totalWorkingHours ?? Math.round(proj.headcount * proj.workingHours), lyVal: Math.round(ly.headcount * ly.workingHours) },
+                      { label: '총 잔업시간(h)', c: curr.totalOvertimeHours ?? Math.round(curr.headcount * curr.overtimeHours), p: proj.totalOvertimeHours ?? Math.round(proj.headcount * proj.overtimeHours), lyVal: Math.round(ly.headcount * ly.overtimeHours) },
+                      { label: '인당 평균 잔업시간(h)', c: curr.overtimeHours, p: proj.overtimeHours, lyVal: ly.overtimeHours }
                     ];
 
                     return metrics.map((m, mIdx) => {
@@ -628,6 +630,7 @@ export default function App() {
                           ${pIdx === 0 && mIdx === 0 ? `<td rowspan="${parts.length * 4}" class="bg-group">${TEAM_NAMES[teamId]}</td>` : ''}
                           ${mIdx === 0 ? `<td rowspan="4" class="bg-subgroup">${PART_NAMES[partId]}</td>` : ''}
                           <td>${m.label}</td>
+                          <td class="font-mono text-slate-400">${m.lyVal.toLocaleString()}</td>
                           <td class="font-mono base-val">${m.p.toLocaleString()}</td>
                           <td contenteditable="true" class="font-mono font-bold editable-cell ${m.label.includes('잔업') && m.c > m.p ? 'text-rose-500' : ''}">${m.c.toLocaleString()}</td>
                           <td class="font-mono growth-val ${isUp ? 'val-up' : 'val-down'}">${isUp ? '▲' : '▼'} ${Math.abs(parseFloat(diff))}%</td>
