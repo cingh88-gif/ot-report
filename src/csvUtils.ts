@@ -29,7 +29,9 @@ export function parseCsvRows(rawRows: Record<string, string>[]): CsvRow[] {
 
 export function buildAllCsvData(rows: CsvRow[]): AllCsvData {
   const allData: AllCsvData = {};
+  const weekCounts: Record<string, number> = {};
 
+  // 1차: 주차별 데이터 합산 (totalOT, totalWH 합산, headcount 합산)
   for (const row of rows) {
     const teamId = TEAM_NAME_TO_ID[row.teamName];
     const partId = PART_NAME_TO_ID[row.partName];
@@ -39,14 +41,44 @@ export function buildAllCsvData(rows: CsvRow[]): AllCsvData {
     if (!allData[row.year][row.month]) allData[row.year][row.month] = {} as any;
     if (!allData[row.year][row.month][teamId]) allData[row.year][row.month][teamId] = {};
 
-    const hc = row.headcount || 1;
-    allData[row.year][row.month][teamId][partId] = {
-      headcount: row.headcount,
-      workingHours: parseFloat((row.totalWorkingHours / hc).toFixed(1)),
-      overtimeHours: parseFloat((row.totalOvertimeHours / hc).toFixed(1)),
-      totalWorkingHours: row.totalWorkingHours,
-      totalOvertimeHours: row.totalOvertimeHours,
-    };
+    const key = `${row.year}-${row.month}-${teamId}-${partId}`;
+    const existing = allData[row.year][row.month][teamId][partId];
+
+    if (existing) {
+      existing.totalWorkingHours = (existing.totalWorkingHours || 0) + row.totalWorkingHours;
+      existing.totalOvertimeHours = (existing.totalOvertimeHours || 0) + row.totalOvertimeHours;
+      existing.headcount += row.headcount;
+      weekCounts[key] += 1;
+    } else {
+      allData[row.year][row.month][teamId][partId] = {
+        headcount: row.headcount,
+        workingHours: 0,
+        overtimeHours: 0,
+        totalWorkingHours: row.totalWorkingHours,
+        totalOvertimeHours: row.totalOvertimeHours,
+      };
+      weekCounts[key] = 1;
+    }
+  }
+
+  // 2차: headcount 평균 계산 및 인당 지표 산출
+  for (const yearStr of Object.keys(allData)) {
+    const year = parseInt(yearStr, 10);
+    for (const monthStr of Object.keys(allData[year])) {
+      const month = parseInt(monthStr, 10);
+      for (const teamId of Object.keys(allData[year][month]) as TeamId[]) {
+        for (const partId of Object.keys(allData[year][month][teamId]) as PartId[]) {
+          const data = allData[year][month][teamId][partId];
+          if (!data) continue;
+          const key = `${year}-${month}-${teamId}-${partId}`;
+          const count = weekCounts[key] || 1;
+          data.headcount = parseFloat((data.headcount / count).toFixed(1));
+          const hc = data.headcount || 1;
+          data.workingHours = parseFloat(((data.totalWorkingHours || 0) / hc).toFixed(1));
+          data.overtimeHours = parseFloat(((data.totalOvertimeHours || 0) / hc).toFixed(1));
+        }
+      }
+    }
   }
 
   return allData;
