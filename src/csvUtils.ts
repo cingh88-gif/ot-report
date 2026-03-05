@@ -187,9 +187,9 @@ export function buildHistoricalTrendData(
           if (parts) {
             const partValues = Object.values(parts).filter(Boolean) as MetricData[];
             if (partValues.length > 0) {
-              entry[teamId] = parseFloat(
-                (partValues.reduce((acc, p) => acc + p.overtimeHours, 0) / partValues.length).toFixed(1)
-              );
+              const totalOT = partValues.reduce((acc, p) => acc + p.totalOvertimeHours, 0);
+              const totalHC = partValues.reduce((acc, p) => acc + p.headcount, 0);
+              entry[teamId] = totalHC > 0 ? parseFloat((totalOT / totalHC).toFixed(1)) : 0;
             }
           }
         }
