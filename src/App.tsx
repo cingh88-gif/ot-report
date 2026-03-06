@@ -516,6 +516,45 @@ export default function App() {
       return;
     }
 
+    // 파트별 평균 잔업시간 현황 차트 SVG 캡처
+    const chartContainer = document.querySelector('.recharts-wrapper svg') as SVGElement | null;
+    // 두번째 recharts-wrapper가 파트별 차트
+    const allChartWrappers = document.querySelectorAll('.recharts-wrapper');
+    const partChartSvg = allChartWrappers.length > 1
+      ? (allChartWrappers[1].querySelector('svg') as SVGElement)?.outerHTML || ''
+      : '';
+
+    // 평균 시간지표 요약 HTML 생성
+    const summaryHtml = (Object.keys(TEAM_NAMES) as TeamId[]).map(teamId => {
+      const teamParts = Object.values(currentData[teamId]) as (MetricData | undefined)[];
+      const curTotalOT = teamParts.reduce((acc, curr) => acc + (curr?.headcount || 0) * (curr?.overtimeHours || 0), 0);
+      const curTotalHC = teamParts.reduce((acc, curr) => acc + (curr?.headcount || 0), 0);
+      const avgOT = curTotalHC > 0 ? curTotalOT / curTotalHC : 0;
+
+      const lyParts = Object.values(lastYearData[teamId] || {}) as (MetricData | undefined)[];
+      const lyTotOT = lyParts.reduce((acc, c) => acc + (c?.headcount || 0) * (c?.overtimeHours || 0), 0);
+      const lyTotHC = lyParts.reduce((acc, c) => acc + (c?.headcount || 0), 0);
+      const lyAvgOT = lyTotHC > 0 ? lyTotOT / lyTotHC : 0;
+
+      const lyAvgParts = Object.values(lastYearAvgData[teamId] || {}) as (MetricData | undefined)[];
+      const lyAvgTotOT = lyAvgParts.reduce((acc, c) => acc + (c?.headcount || 0) * (c?.overtimeHours || 0), 0);
+      const lyAvgTotHC = lyAvgParts.reduce((acc, c) => acc + (c?.headcount || 0), 0);
+      const lyAvgAvgOT = lyAvgTotHC > 0 ? lyAvgTotOT / lyAvgTotHC : 0;
+
+      const lyDiff = lyAvgOT !== 0 ? ((avgOT - lyAvgOT) / lyAvgOT * 100) : 0;
+      const lyAvgDiff = lyAvgAvgOT !== 0 ? ((avgOT - lyAvgAvgOT) / lyAvgAvgOT * 100) : 0;
+
+      return `
+        <div style="flex:1; text-align:center; padding:6px 8px;">
+          <div style="font-size:9px; color:#94a3b8; margin-bottom:2px;">${TEAM_NAMES[teamId]} 인당 평균 잔업</div>
+          <div style="font-size:20px; font-weight:700; font-family:monospace; color:#1e1b4b;">${avgOT.toFixed(1)}<span style="font-size:12px; font-weight:400; color:#64748b;">h</span></div>
+          <div style="display:flex; justify-content:center; gap:8px; margin-top:2px; font-size:9px; font-weight:700;">
+            <span style="color:${avgOT > lyAvgOT ? '#ef4444' : '#22c55e'};">${avgOT > lyAvgOT ? '▲' : '▼'} ${Math.abs(lyDiff).toFixed(1)}% <span style="font-weight:400; color:#64748b;">vs 전년 동기</span></span>
+            <span style="color:${avgOT > lyAvgAvgOT ? '#ef4444' : '#22c55e'};">${avgOT > lyAvgAvgOT ? '▲' : '▼'} ${Math.abs(lyAvgDiff).toFixed(1)}% <span style="font-weight:400; color:#64748b;">vs 전년 평균</span></span>
+          </div>
+        </div>`;
+    }).join('');
+
     const reportHtml = `
       <!DOCTYPE html>
       <html>
@@ -583,6 +622,24 @@ export default function App() {
               <div class="text-right text-[10px]">
                 <span class="font-bold text-slate-400 mr-2">REPORT DATE:</span>
                 <span contenteditable="true" class="editable-field font-bold">${format(reportDate, 'yyyy. MM. dd')}</span>
+              </div>
+            </div>
+
+            <div style="display:flex; gap:8px; margin-bottom:10px; align-items:stretch;">
+              <div style="flex:1; border:1px solid #e2e8f0; border-radius:8px; padding:8px; background:#fff;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                  <span style="font-size:11px; font-weight:700;">파트별 평균 잔업시간 현황</span>
+                  <div style="display:flex; gap:8px; font-size:8px; color:#64748b;">
+                    <span><span style="display:inline-block;width:8px;height:8px;background:#6366f1;border-radius:2px;margin-right:2px;vertical-align:middle;"></span>당월</span>
+                    <span><span style="display:inline-block;width:8px;height:8px;background:#cbd5e1;border-radius:2px;margin-right:2px;vertical-align:middle;"></span>전년 동기</span>
+                    <span><span style="display:inline-block;width:6px;height:6px;background:#fbbf24;border-radius:50%;margin-right:2px;vertical-align:middle;"></span>전년 평균</span>
+                  </div>
+                </div>
+                ${partChartSvg}
+              </div>
+              <div style="width:240px; flex-shrink:0; background:#1e1b4b; border-radius:8px; padding:10px; color:white; display:flex; flex-direction:column; justify-content:center;">
+                <div style="font-size:8px; font-weight:700; opacity:0.7; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; text-align:center;">평균 시간 지표 요약 (팀별)</div>
+                ${summaryHtml}
               </div>
             </div>
 
