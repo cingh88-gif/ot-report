@@ -635,7 +635,7 @@ export default function App() {
                     <span><span style="display:inline-block;width:6px;height:6px;background:#fbbf24;border-radius:50%;margin-right:2px;vertical-align:middle;"></span>전년 평균</span>
                   </div>
                 </div>
-                <div style="max-height:130px; overflow:hidden; transform:scale(0.75); transform-origin:top left;">${partChartSvg}</div>
+                <div style="width:100%; height:160px;">${partChartSvg.replace(/<svg/, '<svg style="width:100%;height:100%;" preserveAspectRatio="xMidYMid meet"')}</div>
               </div>
               <div style="width:220px; flex-shrink:0; background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:6px; color:#1e293b; display:flex; flex-direction:column; justify-content:center;">
                 <div style="font-size:7px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; text-align:center;">평균 시간 지표 요약 (팀별)</div>
@@ -733,9 +733,9 @@ export default function App() {
               </tbody>
             </table>
 
-            <div class="mt-2">
+            <div class="mt-4 page-break">
               <h2 class="text-xs font-bold mb-1">3. 종합 검토 의견</h2>
-              <div contenteditable="true" class="editable-field bg-slate-50 p-2 rounded-lg border border-slate-200 min-h-[60px] text-[9px] leading-relaxed">
+              <div contenteditable="true" class="editable-field bg-slate-50 p-4 rounded-lg border border-slate-200 min-h-[200px] text-xs leading-relaxed">
               </div>
             </div>
           </div>
