@@ -563,8 +563,8 @@ export default function App() {
           <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+KR:wght@400;700&display=swap');
-            @page { size: A4 portrait; margin: 8mm; }
-            body { font-family: 'Inter', 'Noto Sans KR', sans-serif; background: white; color: #1e293b; padding: 5px; }
+            @page { size: A4 portrait; margin: 6mm; }
+            body { font-family: 'Inter', 'Noto Sans KR', sans-serif; background: white; color: #1e293b; padding: 3px; }
             .a4-page { width: 210mm; margin: 0 auto; background: white; }
             @media print {
               body { background: none; padding: 0 !important; }
@@ -573,9 +573,9 @@ export default function App() {
               .editable-field { border: none !important; padding: 0 !important; outline: none !important; }
               .editable-cell { border: none !important; background: none !important; }
             }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 8px; table-layout: fixed; }
-            th { background: #f1f5f9; font-weight: 700; font-size: 9px; color: #475569; border: 1px solid #cbd5e1; height: 22px; padding: 2px 4px; }
-            td { border: 1px solid #cbd5e1; padding: 2px 4px; text-align: center; font-size: 9px; height: 18px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 6px; table-layout: fixed; }
+            th { background: #f1f5f9; font-weight: 700; font-size: 9px; color: #475569; border: 1px solid #cbd5e1; height: 20px; padding: 1px 3px; }
+            td { border: 1px solid #cbd5e1; padding: 1px 3px; text-align: center; font-size: 9px; height: 16px; }
             
             /* Column Width Adjustments */
             th:nth-child(1), td:nth-child(1) { width: 60px; } /* 팀구분 */
