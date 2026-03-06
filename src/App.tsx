@@ -983,9 +983,7 @@ export default function App() {
                       dot={{ r: 3, fill: color, strokeWidth: 2, stroke: '#fff', fillOpacity: opacity, strokeOpacity: opacity }}
                       activeDot={{ r: 5, strokeWidth: 0 }}
                       animationDuration={1000}
-                    >
-                      <LabelList dataKey={key} position="top" style={{ fontSize: 9, fill: color, fontWeight: 600, opacity }} />
-                    </Line>
+                    />
                   ))}
                 </LineChart>
               </ResponsiveContainer>
