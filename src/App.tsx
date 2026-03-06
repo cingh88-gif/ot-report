@@ -488,6 +488,8 @@ export default function App() {
         return metrics.map((m, mIdx) => {
           const diff = m.pVal !== 0 ? ((m.cVal - m.pVal) / m.pVal * 100).toFixed(1) : '0.0';
           const isUp = m.cVal > m.pVal;
+          const lyDiff = m.lyVal !== 0 ? ((m.cVal - m.lyVal) / m.lyVal * 100).toFixed(1) : '0.0';
+          const lyIsUp = m.cVal > m.lyVal;
           const rowspanTeam = pIdx === 0 && mIdx === 0 ? '<td rowspan="' + (parts.length * 3) + '" class="bg-group">' + TEAM_NAMES[teamId] + '</td>' : '';
           const rowspanPart = mIdx === 0 ? '<td rowspan="3" class="bg-subgroup">' + PART_NAMES[partId] + '</td>' : '';
           const otClass = isUp ? 'text-rose-500' : '';
@@ -499,6 +501,7 @@ export default function App() {
             + '<td class="font-mono text-slate-400">' + m.lyVal + '</td>'
             + '<td class="font-mono base-val">' + m.pVal + '</td>'
             + '<td contenteditable="true" class="font-mono font-bold editable-cell ' + otClass + '">' + m.cVal + '</td>'
+            + '<td class="font-mono ly-growth-val ' + (lyIsUp ? 'val-up' : 'val-down') + '">' + (lyIsUp ? '▲' : '▼') + ' ' + Math.abs(parseFloat(lyDiff)) + '%</td>'
             + '<td class="font-mono growth-val ' + (isUp ? 'val-up' : 'val-down') + '">' + (isUp ? '▲' : '▼') + ' ' + Math.abs(parseFloat(diff)) + '%</td>'
             + '</tr>';
         }).join('');
@@ -593,6 +596,7 @@ export default function App() {
                   <th>전년 평균</th>
                   <th>전주(${prevWeekInfo ? `${prevWeekInfo.month}월 ${prevWeekInfo.week}주차` : ''})</th>
                   <th>금주(${currentWeekInfo ? `${currentWeekInfo.month}월 ${currentWeekInfo.week}주차` : ''})</th>
+                  <th>전년 평균 대비 증감율</th>
                   <th>전주 대비 증감율</th>
                 </tr>
               </thead>
@@ -627,6 +631,7 @@ export default function App() {
                   <th>전년 평균</th>
                   <th>전월</th>
                   <th>당월(예상)</th>
+                  <th>전년 평균 대비 증감율</th>
                   <th>전월 대비 증감율</th>
                 </tr>
               </thead>
@@ -650,6 +655,8 @@ export default function App() {
                     return metrics.map((m, mIdx) => {
                       const diff = m.p !== 0 ? ((m.c - m.p) / m.p * 100).toFixed(1) : '0.0';
                       const isUp = m.c > m.p;
+                      const lyDiff = m.lyVal !== 0 ? ((m.c - m.lyVal) / m.lyVal * 100).toFixed(1) : '0.0';
+                      const lyIsUp = m.c > m.lyVal;
 
                       return `
                         <tr class="data-row">
@@ -659,6 +666,7 @@ export default function App() {
                           <td class="font-mono text-slate-400">${m.lyVal.toLocaleString()}</td>
                           <td class="font-mono base-val">${m.p.toLocaleString()}</td>
                           <td contenteditable="true" class="font-mono font-bold editable-cell ${isUp ? 'text-rose-500' : ''}">${m.c.toLocaleString()}</td>
+                          <td class="font-mono ly-growth-val ${lyIsUp ? 'val-up' : 'val-down'}">${lyIsUp ? '▲' : '▼'} ${Math.abs(parseFloat(lyDiff))}%</td>
                           <td class="font-mono growth-val ${isUp ? 'val-up' : 'val-down'}">${isUp ? '▲' : '▼'} ${Math.abs(parseFloat(diff))}%</td>
                         </tr>
                       `;
@@ -681,19 +689,33 @@ export default function App() {
                 const row = this.closest('tr');
                 const baseValText = row.querySelector('.base-val').innerText.replace(/,/g, '');
                 const currentValText = this.innerText.replace(/,/g, '');
-                
+
                 const baseVal = parseFloat(baseValText);
                 const currentVal = parseFloat(currentValText);
                 const growthCell = row.querySelector('.growth-val');
+                const lyGrowthCell = row.querySelector('.ly-growth-val');
 
                 if (!isNaN(baseVal) && !isNaN(currentVal) && baseVal !== 0) {
                   const diff = ((currentVal - baseVal) / baseVal * 100).toFixed(1);
                   const isUp = currentVal > baseVal;
-                  
+
                   growthCell.innerText = (isUp ? '▲ ' : '▼ ') + Math.abs(diff) + '%';
                   growthCell.className = 'font-mono growth-val ' + (isUp ? 'val-up' : 'val-down');
                 } else if (baseVal === 0) {
                   growthCell.innerText = '-';
+                }
+
+                if (lyGrowthCell) {
+                  const lyValText = row.querySelector('.text-slate-400')?.innerText.replace(/,/g, '') || '0';
+                  const lyVal = parseFloat(lyValText);
+                  if (!isNaN(lyVal) && !isNaN(currentVal) && lyVal !== 0) {
+                    const lyDiff = ((currentVal - lyVal) / lyVal * 100).toFixed(1);
+                    const lyIsUp = currentVal > lyVal;
+                    lyGrowthCell.innerText = (lyIsUp ? '▲ ' : '▼ ') + Math.abs(lyDiff) + '%';
+                    lyGrowthCell.className = 'font-mono ly-growth-val ' + (lyIsUp ? 'val-up' : 'val-down');
+                  } else if (lyVal === 0) {
+                    lyGrowthCell.innerText = '-';
+                  }
                 }
               });
             });
