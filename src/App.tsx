@@ -545,10 +545,10 @@ export default function App() {
       const lyAvgDiff = lyAvgAvgOT !== 0 ? ((avgOT - lyAvgAvgOT) / lyAvgAvgOT * 100) : 0;
 
       return `
-        <div style="text-align:center; padding:3px 6px; border-bottom:1px solid #e2e8f0;">
-          <div style="font-size:8px; color:#94a3b8; margin-bottom:1px;">${TEAM_NAMES[teamId]} 인당 평균 잔업</div>
-          <div style="font-size:16px; font-weight:700; font-family:monospace; color:#1e1b4b;">${avgOT.toFixed(1)}<span style="font-size:10px; font-weight:400; color:#64748b;">h</span></div>
-          <div style="display:flex; justify-content:center; gap:6px; margin-top:1px; font-size:8px; font-weight:700;">
+        <div style="text-align:center; padding:6px 8px; border-bottom:1px solid #e2e8f0;">
+          <div style="font-size:9px; color:#94a3b8; margin-bottom:2px;">${TEAM_NAMES[teamId]} 인당 평균 잔업</div>
+          <div style="font-size:18px; font-weight:700; font-family:monospace; color:#1e1b4b;">${avgOT.toFixed(1)}<span style="font-size:11px; font-weight:400; color:#64748b;">h</span></div>
+          <div style="display:flex; justify-content:center; gap:8px; margin-top:2px; font-size:9px; font-weight:700;">
             <span style="color:${avgOT > lyAvgOT ? '#ef4444' : '#22c55e'};">${avgOT > lyAvgOT ? '▲' : '▼'} ${Math.abs(lyDiff).toFixed(1)}% <span style="font-weight:400; color:#64748b;">vs 전년 동기</span></span>
             <span style="color:${avgOT > lyAvgAvgOT ? '#ef4444' : '#22c55e'};">${avgOT > lyAvgAvgOT ? '▲' : '▼'} ${Math.abs(lyAvgDiff).toFixed(1)}% <span style="font-weight:400; color:#64748b;">vs 전년 평균</span></span>
           </div>
@@ -563,8 +563,8 @@ export default function App() {
           <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+KR:wght@400;700&display=swap');
-            @page { size: A4 portrait; margin: 4mm; }
-            body { font-family: 'Inter', 'Noto Sans KR', sans-serif; background: white; color: #1e293b; padding: 2px; }
+            @page { size: A4 portrait; margin: 8mm; }
+            body { font-family: 'Inter', 'Noto Sans KR', sans-serif; background: white; color: #1e293b; padding: 5px; }
             .a4-page { width: 210mm; margin: 0 auto; background: white; }
             @media print {
               body { background: none; padding: 0 !important; }
@@ -573,9 +573,9 @@ export default function App() {
               .editable-field { border: none !important; padding: 0 !important; outline: none !important; }
               .editable-cell { border: none !important; background: none !important; }
             }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 4px; table-layout: fixed; }
-            th { background: #f1f5f9; font-weight: 700; font-size: 8px; color: #475569; border: 1px solid #cbd5e1; height: 18px; padding: 1px 2px; }
-            td { border: 1px solid #cbd5e1; padding: 1px 2px; text-align: center; font-size: 8px; height: 16px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 8px; table-layout: fixed; }
+            th { background: #f1f5f9; font-weight: 700; font-size: 9px; color: #475569; border: 1px solid #cbd5e1; height: 22px; padding: 2px 4px; }
+            td { border: 1px solid #cbd5e1; padding: 2px 4px; text-align: center; font-size: 9px; height: 18px; }
             
             /* Column Width Adjustments */
             th:nth-child(1), td:nth-child(1) { width: 60px; } /* 팀구분 */
@@ -613,8 +613,8 @@ export default function App() {
             </button>
           </div>
           
-          <div class="a4-page p-2">
-            <div class="flex justify-between items-end mb-2 border-b-2 border-slate-900 pb-1">
+          <div class="a4-page p-4">
+            <div class="flex justify-between items-end mb-4 border-b-2 border-slate-900 pb-2">
               <div>
                 <h1 class="text-lg font-bold">생산팀 OT 주간 보고</h1>
                 <p class="text-[9px] text-slate-500 font-medium mt-0.5">${getWeekString(reportDate)}</p>
@@ -625,8 +625,8 @@ export default function App() {
               </div>
             </div>
 
-            <div style="display:flex; gap:6px; margin-bottom:6px; align-items:stretch;">
-              <div style="flex:1; border:1px solid #e2e8f0; border-radius:8px; padding:6px; background:#fff; overflow:hidden;">
+            <div style="display:flex; gap:8px; margin-bottom:10px; align-items:stretch;">
+              <div style="flex:1; border:1px solid #e2e8f0; border-radius:8px; padding:8px; background:#fff; overflow:hidden;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
                   <span style="font-size:11px; font-weight:700;">파트별 평균 잔업시간 현황</span>
                   <div style="display:flex; gap:8px; font-size:8px; color:#64748b;">
@@ -635,10 +635,10 @@ export default function App() {
                     <span><span style="display:inline-block;width:6px;height:6px;background:#fbbf24;border-radius:50%;margin-right:2px;vertical-align:middle;"></span>전년 평균</span>
                   </div>
                 </div>
-                <div style="width:100%; height:160px;">${partChartSvg.replace(/<svg/, '<svg style="width:100%;height:100%;" preserveAspectRatio="xMidYMid meet"')}</div>
+                <div style="width:100%; height:200px;">${partChartSvg.replace(/<svg/, '<svg style="width:100%;height:100%;" preserveAspectRatio="xMidYMid meet"')}</div>
               </div>
-              <div style="width:220px; flex-shrink:0; background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:6px; color:#1e293b; display:flex; flex-direction:column; justify-content:center;">
-                <div style="font-size:7px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; text-align:center;">평균 시간 지표 요약 (팀별)</div>
+              <div style="width:240px; flex-shrink:0; background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:10px; color:#1e293b; display:flex; flex-direction:column; justify-content:center;">
+                <div style="font-size:8px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; text-align:center;">평균 시간 지표 요약 (팀별)</div>
                 ${summaryHtml}
               </div>
             </div>
