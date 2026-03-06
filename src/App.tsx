@@ -593,7 +593,7 @@ export default function App() {
                   <th>전년 평균</th>
                   <th>전주(${prevWeekInfo ? `${prevWeekInfo.month}월 ${prevWeekInfo.week}주차` : ''})</th>
                   <th>금주(${currentWeekInfo ? `${currentWeekInfo.month}월 ${currentWeekInfo.week}주차` : ''})</th>
-                  <th>증감율</th>
+                  <th>전주 대비 증감율</th>
                 </tr>
               </thead>
               <tbody>
@@ -627,7 +627,7 @@ export default function App() {
                   <th>전년 평균</th>
                   <th>전월</th>
                   <th>당월(예상)</th>
-                  <th>증감율</th>
+                  <th>전월 대비 증감율</th>
                 </tr>
               </thead>
               <tbody>
