@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  LineChart, Line, ComposedChart, Cell
+  LineChart, Line, ComposedChart, Cell, LabelList
 } from 'recharts';
 import { 
   TrendingUp, TrendingDown, Users, Clock, AlertCircle,
@@ -983,7 +983,9 @@ export default function App() {
                       dot={{ r: 3, fill: color, strokeWidth: 2, stroke: '#fff', fillOpacity: opacity, strokeOpacity: opacity }}
                       activeDot={{ r: 5, strokeWidth: 0 }}
                       animationDuration={1000}
-                    />
+                    >
+                      <LabelList dataKey={key} position="top" style={{ fontSize: 9, fill: color, fontWeight: 600, opacity }} />
+                    </Line>
                   ))}
                 </LineChart>
               </ResponsiveContainer>
@@ -1005,10 +1007,8 @@ export default function App() {
                     <span className="text-slate-500">전년 동기</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <svg width="20" height="12" className="flex-shrink-0">
-                      <line x1="0" y1="6" x2="7" y2="6" stroke="#fbbf24" strokeWidth="2" strokeDasharray="3 2" />
-                      <circle cx="10" cy="6" r="3" fill="#fbbf24" />
-                      <line x1="13" y1="6" x2="20" y2="6" stroke="#fbbf24" strokeWidth="2" strokeDasharray="3 2" />
+                    <svg width="12" height="12" className="flex-shrink-0">
+                      <circle cx="6" cy="6" r="4" fill="#fbbf24" stroke="#fff" strokeWidth="1.5" />
                     </svg>
                     <span className="text-slate-500">전년 평균</span>
                   </div>
@@ -1027,16 +1027,21 @@ export default function App() {
                     />
                     <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} unit="h" />
                     <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                    <Bar dataKey="overtime" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={24} />
-                    <Bar dataKey="overtimeLY" fill="#cbd5e1" radius={[4, 4, 0, 0]} barSize={24} />
+                    <Bar dataKey="overtime" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={24}>
+                      <LabelList dataKey="overtime" position="top" style={{ fontSize: 10, fill: '#6366f1', fontWeight: 600 }} />
+                    </Bar>
+                    <Bar dataKey="overtimeLY" fill="#cbd5e1" radius={[4, 4, 0, 0]} barSize={24}>
+                      <LabelList dataKey="overtimeLY" position="top" style={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }} />
+                    </Bar>
                     <Line
                       dataKey="overtimeAvgLY"
                       type="monotone"
-                      stroke="#fbbf24"
-                      strokeWidth={2}
-                      strokeDasharray="6 3"
-                      dot={{ r: 4, fill: '#fbbf24', stroke: '#fbbf24' }}
-                    />
+                      stroke="transparent"
+                      strokeWidth={0}
+                      dot={{ r: 5, fill: '#fbbf24', stroke: '#fff', strokeWidth: 2 }}
+                    >
+                      <LabelList dataKey="overtimeAvgLY" position="top" style={{ fontSize: 10, fill: '#fbbf24', fontWeight: 600 }} />
+                    </Line>
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
@@ -1046,25 +1051,26 @@ export default function App() {
               <h3 className="text-sm font-bold opacity-70 uppercase tracking-widest mb-6">평균 시간 지표 요약 (팀별)</h3>
               <div className="space-y-6">
                 {(Object.keys(TEAM_NAMES) as TeamId[]).map((teamId) => {
+                  // 가중 평균: 총 잔업시간 / 총 인원
                   const teamParts = Object.values(currentData[teamId]) as (MetricData | undefined)[];
-                  const avgOvertime = teamParts.length > 0 
-                    ? teamParts.reduce((acc, curr) => acc + (curr?.overtimeHours || 0), 0) / teamParts.length 
-                    : 0;
-                  
-                  // Monthly Average (from Projection Data)
-                  const projTeamParts = Object.values(projectionData[teamId] || {}) as (MetricData | undefined)[];
-                  const projAvgOvertime = projTeamParts.length > 0
-                    ? projTeamParts.reduce((acc, curr) => acc + (curr?.overtimeHours || 0), 0) / projTeamParts.length
-                    : 0;
+                  const curTotalOT = teamParts.reduce((acc, curr) => acc + (curr?.headcount || 0) * (curr?.overtimeHours || 0), 0);
+                  const curTotalHC = teamParts.reduce((acc, curr) => acc + (curr?.headcount || 0), 0);
+                  const avgOvertime = curTotalHC > 0 ? curTotalOT / curTotalHC : 0;
 
-                  // Last Year
+                  // 전년 동기 - 가중 평균
                   const lyTeamParts = Object.values(lastYearData[teamId] || {}) as (MetricData | undefined)[];
-                  const lyAvgOvertime = lyTeamParts.length > 0
-                    ? lyTeamParts.reduce((acc, curr) => acc + (curr?.overtimeHours || 0), 0) / lyTeamParts.length
-                    : 0;
-                  
-                  const projDiff = projAvgOvertime !== 0 ? ((avgOvertime - projAvgOvertime) / projAvgOvertime * 100) : 0;
+                  const lyTotalOT = lyTeamParts.reduce((acc, curr) => acc + (curr?.headcount || 0) * (curr?.overtimeHours || 0), 0);
+                  const lyTotalHC = lyTeamParts.reduce((acc, curr) => acc + (curr?.headcount || 0), 0);
+                  const lyAvgOvertime = lyTotalHC > 0 ? lyTotalOT / lyTotalHC : 0;
+
+                  // 전년 평균 - 가중 평균
+                  const lyAvgTeamParts = Object.values(lastYearAvgData[teamId] || {}) as (MetricData | undefined)[];
+                  const lyAvgTotalOT = lyAvgTeamParts.reduce((acc, curr) => acc + (curr?.headcount || 0) * (curr?.overtimeHours || 0), 0);
+                  const lyAvgTotalHC = lyAvgTeamParts.reduce((acc, curr) => acc + (curr?.headcount || 0), 0);
+                  const lyAvgAvgOvertime = lyAvgTotalHC > 0 ? lyAvgTotalOT / lyAvgTotalHC : 0;
+
                   const lyDiff = lyAvgOvertime !== 0 ? ((avgOvertime - lyAvgOvertime) / lyAvgOvertime * 100) : 0;
+                  const lyAvgDiff = lyAvgAvgOvertime !== 0 ? ((avgOvertime - lyAvgAvgOvertime) / lyAvgAvgOvertime * 100) : 0;
 
                   return (
                     <div key={teamId} className="border-b border-white/10 pb-4 last:border-0 last:pb-0">
@@ -1076,19 +1082,19 @@ export default function App() {
                       <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
                         <div className={cn(
                           "flex items-center gap-1 text-[11px] font-bold",
-                          avgOvertime > projAvgOvertime ? "text-rose-400" : "text-emerald-400"
-                        )}>
-                          {avgOvertime > projAvgOvertime ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-                          {Math.abs(projDiff).toFixed(1)}%
-                          <span className="text-[10px] opacity-60 font-normal ml-1 text-white">vs 당월 평균</span>
-                        </div>
-                        <div className={cn(
-                          "flex items-center gap-1 text-[11px] font-bold",
                           avgOvertime > lyAvgOvertime ? "text-rose-400" : "text-emerald-400"
                         )}>
                           {avgOvertime > lyAvgOvertime ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
                           {Math.abs(lyDiff).toFixed(1)}%
                           <span className="text-[10px] opacity-60 font-normal ml-1 text-white">vs 전년 동기</span>
+                        </div>
+                        <div className={cn(
+                          "flex items-center gap-1 text-[11px] font-bold",
+                          avgOvertime > lyAvgAvgOvertime ? "text-rose-400" : "text-emerald-400"
+                        )}>
+                          {avgOvertime > lyAvgAvgOvertime ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+                          {Math.abs(lyAvgDiff).toFixed(1)}%
+                          <span className="text-[10px] opacity-60 font-normal ml-1 text-white">vs 전년 평균</span>
                         </div>
                       </div>
                     </div>
