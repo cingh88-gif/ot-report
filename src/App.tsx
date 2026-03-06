@@ -545,10 +545,10 @@ export default function App() {
       const lyAvgDiff = lyAvgAvgOT !== 0 ? ((avgOT - lyAvgAvgOT) / lyAvgAvgOT * 100) : 0;
 
       return `
-        <div style="text-align:center; padding:6px 8px; border-bottom:1px solid #e2e8f0;">
-          <div style="font-size:9px; color:#94a3b8; margin-bottom:2px;">${TEAM_NAMES[teamId]} 인당 평균 잔업</div>
-          <div style="font-size:20px; font-weight:700; font-family:monospace; color:#1e1b4b;">${avgOT.toFixed(1)}<span style="font-size:12px; font-weight:400; color:#64748b;">h</span></div>
-          <div style="display:flex; justify-content:center; gap:8px; margin-top:2px; font-size:9px; font-weight:700;">
+        <div style="text-align:center; padding:3px 6px; border-bottom:1px solid #e2e8f0;">
+          <div style="font-size:8px; color:#94a3b8; margin-bottom:1px;">${TEAM_NAMES[teamId]} 인당 평균 잔업</div>
+          <div style="font-size:16px; font-weight:700; font-family:monospace; color:#1e1b4b;">${avgOT.toFixed(1)}<span style="font-size:10px; font-weight:400; color:#64748b;">h</span></div>
+          <div style="display:flex; justify-content:center; gap:6px; margin-top:1px; font-size:8px; font-weight:700;">
             <span style="color:${avgOT > lyAvgOT ? '#ef4444' : '#22c55e'};">${avgOT > lyAvgOT ? '▲' : '▼'} ${Math.abs(lyDiff).toFixed(1)}% <span style="font-weight:400; color:#64748b;">vs 전년 동기</span></span>
             <span style="color:${avgOT > lyAvgAvgOT ? '#ef4444' : '#22c55e'};">${avgOT > lyAvgAvgOT ? '▲' : '▼'} ${Math.abs(lyAvgDiff).toFixed(1)}% <span style="font-weight:400; color:#64748b;">vs 전년 평균</span></span>
           </div>
@@ -635,10 +635,10 @@ export default function App() {
                     <span><span style="display:inline-block;width:6px;height:6px;background:#fbbf24;border-radius:50%;margin-right:2px;vertical-align:middle;"></span>전년 평균</span>
                   </div>
                 </div>
-                <div style="max-height:180px; overflow:hidden;">${partChartSvg}</div>
+                <div style="max-height:130px; overflow:hidden; transform:scale(0.75); transform-origin:top left;">${partChartSvg}</div>
               </div>
-              <div style="width:240px; flex-shrink:0; background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:10px; color:#1e293b; display:flex; flex-direction:column; justify-content:center;">
-                <div style="font-size:8px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; text-align:center;">평균 시간 지표 요약 (팀별)</div>
+              <div style="width:220px; flex-shrink:0; background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:6px; color:#1e293b; display:flex; flex-direction:column; justify-content:center;">
+                <div style="font-size:7px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; text-align:center;">평균 시간 지표 요약 (팀별)</div>
                 ${summaryHtml}
               </div>
             </div>
