@@ -31,23 +31,15 @@ import {
   findLatestWeek,
   findPreviousWeek,
   PreviousWeekResult,
+  WORKING_DAYS,
+  getWorkingDays,
 } from './csvUtils';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// 월별 근무일수 (한국 공휴일 반영)
-const WORKING_DAYS: Record<number, number[]> = {
-  2023: [21, 20, 22, 20, 20, 21, 21, 22, 19, 20, 22, 20], // 248일
-  2024: [22, 19, 20, 22, 21, 19, 23, 21, 18, 21, 21, 21], // 248일
-  2025: [19, 20, 21, 22, 20, 20, 23, 20, 22, 19, 20, 22], // 248일
-  2026: [21, 17, 22, 22, 19, 22, 23, 21, 20, 21, 21, 22], // 251일
-};
-
-const getWorkingDays = (year: number, month: number): number => {
-  return WORKING_DAYS[year]?.[month - 1] || 22; // 기본값 22일
-};
+// 영업일수는 csvUtils.ts에서 import
 
 // Mock Initial Data
 const INITIAL_DATA: Record<TeamId, Partial<Record<PartId, MetricData>>> = {

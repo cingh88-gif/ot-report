@@ -1,5 +1,17 @@
 import { TeamId, PartId, MetricData, TEAM_NAMES, PART_NAMES, CsvRow, AllCsvData, WeeklyCsvData } from './types';
 
+// 월별 근무일수 (한국 공휴일 반영)
+export const WORKING_DAYS: Record<number, number[]> = {
+  2023: [21, 20, 22, 20, 20, 21, 21, 22, 19, 20, 22, 20], // 248일
+  2024: [22, 19, 20, 22, 21, 19, 23, 21, 18, 21, 21, 21], // 248일
+  2025: [19, 20, 21, 22, 20, 20, 23, 20, 22, 19, 20, 22], // 248일
+  2026: [21, 17, 22, 22, 19, 22, 23, 21, 20, 21, 21, 22], // 251일
+};
+
+export const getWorkingDays = (year: number, month: number): number => {
+  return WORKING_DAYS[year]?.[month - 1] || 22; // 기본값 22일
+};
+
 const TEAM_NAME_TO_ID: Record<string, TeamId> = {};
 (Object.keys(TEAM_NAMES) as TeamId[]).forEach(id => {
   TEAM_NAME_TO_ID[TEAM_NAMES[id]] = id;
@@ -314,13 +326,13 @@ export function getWeeksInMonth(year: number, month: number): number {
   return count;
 }
 
-/** 주차별 데이터를 합산하여 당월 예상값 산출 */
+/** 주차별 데이터를 합산하고 영업일수 기반으로 당월 예상값 환산 */
 export function deriveMonthlyProjection(
   weeklyCsvData: WeeklyCsvData,
   year: number,
   month: number
 ): Record<TeamId, Partial<Record<PartId, MetricData>>> {
-  const totalWeeks = getWeeksInMonth(year, month);
+  const totalMonthlyBD = getWorkingDays(year, month); // 당월 총 영업일수
   const monthWeeks = weeklyCsvData[year]?.[month];
 
   const result: Record<TeamId, Partial<Record<PartId, MetricData>>> = {
@@ -339,15 +351,19 @@ export function deriveMonthlyProjection(
 
   if (availableWeeks.length === 0 && !hasWeek0) return result;
 
-  const latestWeek = availableWeeks.length > 0
-    ? availableWeeks[availableWeeks.length - 1]
-    : 0;
-
   // 0주차가 커버하는 주차 수: 가장 작은 실제 주차 - 1
-  // 예) availableWeeks=[4] → coveredWeeks=3 (0주차가 1~3주 누적)
   const coveredWeeks = hasWeek0 && availableWeeks.length > 0
     ? Math.max(availableWeeks[0] - 1, 0)
     : 0;
+
+  // 경과 영업일수 = (0주차 커버 주수 + 실제 주차 수) × 5, 단 월 총 영업일수를 초과하지 않음
+  const elapsedBD = Math.min(
+    (coveredWeeks + availableWeeks.length) * 5,
+    totalMonthlyBD
+  );
+
+  // 환산 비율: 월 영업일수 / 경과 영업일수
+  const scaleFactor = elapsedBD > 0 ? totalMonthlyBD / elapsedBD : 1;
 
   // 팀/파트별 주차 데이터 수집
   const teamIds = Object.keys(TEAM_NAMES) as TeamId[];
@@ -400,46 +416,22 @@ export function deriveMonthlyProjection(
       }
     }
 
-    // 3) 남은 주차(데이터 없는 주차)만 최신 주차로 대체
-    // 0주차가 커버한 주차 + 실제 주차 = 이미 커버된 주차
-    const coveredWeekNumbers = new Set<number>();
-    if (hasWeek0) {
-      for (let w = 1; w <= coveredWeeks; w++) coveredWeekNumbers.add(w);
-    }
-    for (const w of availableWeeks) coveredWeekNumbers.add(w);
-
-    if (latestWeek > 0) {
-      for (let w = 1; w <= totalWeeks; w++) {
-        if (coveredWeekNumbers.has(w)) continue;
-        // 남은 주차는 최신 주차 데이터로 대체
-        const weekData = monthWeeks[latestWeek]?.[teamId];
-        if (!weekData) continue;
-
-        for (const partId of Object.keys(weekData) as PartId[]) {
-          const m = weekData[partId];
-          if (!m) continue;
-
-          if (!partAccum[partId]) {
-            partAccum[partId] = { totalWorkingHours: 0, totalOvertimeHours: 0, headcountSum: 0, headcountCount: 0 };
-          }
-
-          partAccum[partId].totalWorkingHours += (m.totalWorkingHours ?? m.workingHours * m.headcount);
-          partAccum[partId].totalOvertimeHours += (m.totalOvertimeHours ?? m.overtimeHours * m.headcount);
-          partAccum[partId].headcountSum += m.headcount;
-          partAccum[partId].headcountCount += 1;
-        }
-      }
-    }
-
+    // 3) 영업일수 비율로 당월 예상 환산
     for (const partId of Object.keys(partAccum) as PartId[]) {
       const a = partAccum[partId];
+      const totalWeeksWithData = coveredWeeks + availableWeeks.length;
       const avgHeadcount = a.headcountCount > 0 ? a.headcountSum / a.headcountCount : 1;
+
+      // 총 시간은 영업일수 비율로 환산, 인원은 평균 유지
+      const projTotalWH = a.totalWorkingHours * scaleFactor;
+      const projTotalOT = a.totalOvertimeHours * scaleFactor;
+
       result[teamId][partId] = {
         headcount: parseFloat(avgHeadcount.toFixed(1)),
-        totalWorkingHours: parseFloat(a.totalWorkingHours.toFixed(1)),
-        totalOvertimeHours: parseFloat(a.totalOvertimeHours.toFixed(1)),
-        workingHours: parseFloat((a.totalWorkingHours / avgHeadcount).toFixed(1)),
-        overtimeHours: parseFloat((a.totalOvertimeHours / avgHeadcount).toFixed(1)),
+        totalWorkingHours: parseFloat(projTotalWH.toFixed(1)),
+        totalOvertimeHours: parseFloat(projTotalOT.toFixed(1)),
+        workingHours: parseFloat((projTotalWH / avgHeadcount).toFixed(1)),
+        overtimeHours: parseFloat((projTotalOT / avgHeadcount).toFixed(1)),
       };
     }
   }
