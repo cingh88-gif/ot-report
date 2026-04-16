@@ -12,6 +12,82 @@ export const getWorkingDays = (year: number, month: number): number => {
   return WORKING_DAYS[year]?.[month - 1] || 22; // 기본값 22일
 };
 
+/** 해당 날짜가 월의 몇 번째 주인지 반환 (월요일 기준, 1-based) */
+export function getWeekNumberInMonth(date: Date): number {
+  const year = date.getFullYear();
+  const month = date.getMonth(); // 0-based
+  const day = date.getDate();
+
+  let mondayCount = 0;
+  for (let d = 1; d <= day; d++) {
+    if (new Date(year, month, d).getDay() === 1) mondayCount++;
+  }
+  return mondayCount || 1;
+}
+
+/** 주차별 데이터를 maxWeek까지만 누적하여 월간 데이터 생성 */
+export function extractAccumulatedWeekData(
+  data: WeeklyCsvData,
+  year: number,
+  month: number,
+  maxWeek: number
+): Record<TeamId, Partial<Record<PartId, MetricData>>> {
+  const result: Record<TeamId, Partial<Record<PartId, MetricData>>> = {
+    team1: {}, team2: {}, team3: {},
+  };
+
+  const monthWeeks = data[year]?.[month];
+  if (!monthWeeks) return result;
+
+  const teamIds = Object.keys(TEAM_NAMES) as TeamId[];
+
+  for (const teamId of teamIds) {
+    const partAccum: Record<string, {
+      totalWorkingHours: number;
+      totalOvertimeHours: number;
+      headcountSum: number;
+      headcountCount: number;
+    }> = {};
+
+    // 1~maxWeek 주차만 누적
+    const weeks = Object.keys(monthWeeks).map(Number).filter(w => w > 0 && w <= maxWeek).sort((a, b) => a - b);
+
+    for (const w of weeks) {
+      const weekData = monthWeeks[w]?.[teamId];
+      if (!weekData) continue;
+
+      for (const partId of Object.keys(weekData) as PartId[]) {
+        const m = weekData[partId];
+        if (!m) continue;
+
+        if (!partAccum[partId]) {
+          partAccum[partId] = { totalWorkingHours: 0, totalOvertimeHours: 0, headcountSum: 0, headcountCount: 0 };
+        }
+
+        partAccum[partId].totalWorkingHours += (m.totalWorkingHours ?? m.workingHours * m.headcount);
+        partAccum[partId].totalOvertimeHours += (m.totalOvertimeHours ?? m.overtimeHours * m.headcount);
+        partAccum[partId].headcountSum += m.headcount;
+        partAccum[partId].headcountCount += 1;
+      }
+    }
+
+    for (const partId of Object.keys(partAccum) as PartId[]) {
+      const a = partAccum[partId];
+      const avgHeadcount = a.headcountCount > 0 ? a.headcountSum / a.headcountCount : 1;
+
+      result[teamId][partId] = {
+        headcount: parseFloat(avgHeadcount.toFixed(1)),
+        totalWorkingHours: parseFloat(a.totalWorkingHours.toFixed(1)),
+        totalOvertimeHours: parseFloat(a.totalOvertimeHours.toFixed(1)),
+        workingHours: parseFloat((a.totalWorkingHours / avgHeadcount).toFixed(1)),
+        overtimeHours: parseFloat((a.totalOvertimeHours / avgHeadcount).toFixed(1)),
+      };
+    }
+  }
+
+  return result;
+}
+
 const TEAM_NAME_TO_ID: Record<string, TeamId> = {};
 (Object.keys(TEAM_NAMES) as TeamId[]).forEach(id => {
   TEAM_NAME_TO_ID[TEAM_NAMES[id]] = id;

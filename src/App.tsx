@@ -33,6 +33,8 @@ import {
   PreviousWeekResult,
   WORKING_DAYS,
   getWorkingDays,
+  getWeekNumberInMonth,
+  extractAccumulatedWeekData,
 } from './csvUtils';
 
 function cn(...inputs: ClassValue[]) {
@@ -166,12 +168,22 @@ export default function App() {
     }
 
     setDisplayPeriod({ year, month });
-    setCurrentData(extractPeriodData(allCsvData, year, month));
+
+    // 주차별 데이터가 있는 월이면 선택 날짜 기준 주차까지만 누적
+    const monthWeeks = weeklyCsvData?.[year]?.[month];
+    const hasWeeklyRows = monthWeeks && Object.keys(monthWeeks).some(w => Number(w) > 0);
+    if (hasWeeklyRows && weeklyCsvData) {
+      const maxWeek = getWeekNumberInMonth(reportDate);
+      setCurrentData(extractAccumulatedWeekData(weeklyCsvData, year, month, maxWeek));
+    } else {
+      setCurrentData(extractPeriodData(allCsvData, year, month));
+    }
+
     setLastYearData(deriveLastYearData(allCsvData, year, month));
     setLastYearAvgData(deriveLastYearAvgData(allCsvData, year));
     // 당월 예상: 해당 월의 주차 데이터로 합산, 없으면 전월 주차 합산, 최종 폴백은 전월 월간
-    const monthWeeks = weeklyCsvData?.[year]?.[month];
-    const hasWeeklyData = monthWeeks && Object.keys(monthWeeks).some(w => Number(w) > 0);
+    const projMonthWeeks = weeklyCsvData?.[year]?.[month];
+    const hasWeeklyData = projMonthWeeks && Object.keys(projMonthWeeks).some(w => Number(w) > 0);
     if (hasWeeklyData) {
       setProjectionData(deriveMonthlyProjection(weeklyCsvData!, year, month));
     } else {
