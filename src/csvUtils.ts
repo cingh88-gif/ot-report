@@ -16,13 +16,16 @@ export const getWorkingDays = (year: number, month: number): number => {
 export function getWeekNumberInMonth(date: Date): number {
   const year = date.getFullYear();
   const month = date.getMonth(); // 0-based
-  const day = date.getDate();
 
-  let mondayCount = 0;
-  for (let d = 1; d <= day; d++) {
-    if (new Date(year, month, d).getDay() === 1) mondayCount++;
-  }
-  return mondayCount || 1;
+  // 1일이 속한 주의 월요일 찾기
+  const firstOfMonth = new Date(year, month, 1);
+  const dow = firstOfMonth.getDay(); // 0=일, 1=월, ...
+  const mondayOffset = dow === 0 ? 6 : dow - 1;
+  const firstWeekMonday = new Date(year, month, 1 - mondayOffset);
+
+  // 선택 날짜가 몇 번째 주에 속하는지 계산
+  const diffDays = Math.floor((date.getTime() - firstWeekMonday.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.floor(diffDays / 7) + 1;
 }
 
 /** 주차별 데이터를 maxWeek까지만 누적하여 월간 데이터 생성 */
