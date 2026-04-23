@@ -310,7 +310,7 @@ export function buildHistoricalTrendData(
           if (parts) {
             const partValues = Object.values(parts).filter(Boolean) as MetricData[];
             if (partValues.length > 0) {
-              const totalOT = partValues.reduce((acc, p) => acc + p.totalOvertimeHours, 0);
+              const totalOT = partValues.reduce((acc, p) => acc + (p.totalOvertimeHours ?? 0), 0);
               const totalHC = partValues.reduce((acc, p) => acc + p.headcount, 0);
               entry[teamId] = totalHC > 0 ? parseFloat((totalOT / totalHC).toFixed(1)) : 0;
             }
@@ -498,7 +498,6 @@ export function deriveMonthlyProjection(
     // 3) 영업일수 비율로 당월 예상 환산
     for (const partId of Object.keys(partAccum) as PartId[]) {
       const a = partAccum[partId];
-      const totalWeeksWithData = coveredWeeks + availableWeeks.length;
       const avgHeadcount = a.headcountCount > 0 ? a.headcountSum / a.headcountCount : 1;
 
       // 총 시간은 영업일수 비율로 환산, 인원은 평균 유지

@@ -1,20 +1,17 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  LineChart, Line, ComposedChart, Cell, LabelList
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import {
+  Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  LineChart, Line, ComposedChart, LabelList,
 } from 'recharts';
-import { 
-  TrendingUp, TrendingDown, Users, Clock, AlertCircle,
-  ChevronRight, LayoutDashboard, Settings,
+import {
+  LayoutDashboard,
   Plus, Save, Calendar, ArrowUpRight, ArrowDownRight,
-  Upload
+  Upload,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import Papa from 'papaparse';
-import { format, startOfWeek, endOfWeek, getWeekOfMonth, lastDayOfMonth } from 'date-fns';
-import { ko } from 'date-fns/locale';
+import { format, startOfWeek, endOfWeek, getWeekOfMonth } from 'date-fns';
 import { TeamId, PartId, TEAM_NAMES, PART_NAMES, MetricData, AllCsvData, WeeklyCsvData } from './types';
 import {
   parseCsvRows,
@@ -30,8 +27,6 @@ import {
   extractWeekData,
   findLatestWeek,
   findPreviousWeek,
-  PreviousWeekResult,
-  WORKING_DAYS,
   getWorkingDays,
   getWeekNumberInMonth,
   extractAccumulatedWeekData,
@@ -40,8 +35,6 @@ import {
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
-
-// 영업일수는 csvUtils.ts에서 import
 
 // Mock Initial Data
 const INITIAL_DATA: Record<TeamId, Partial<Record<PartId, MetricData>>> = {
@@ -109,6 +102,14 @@ const generateHistoricalData = () => {
 
 const HISTORICAL_TREND_DATA = generateHistoricalData();
 
+// 상수: 팀별 선 색상과 전년 평균 색상
+const TEAM_STROKE_COLORS: Record<TeamId, string> = {
+  team1: '#2563EB', // blue
+  team2: '#DC2626', // red
+  team3: '#16A34A', // green
+};
+const AVERAGE_COLOR = '#F59E0B'; // amber
+
 export default function App() {
   const [currentData, setCurrentData] = useState(INITIAL_DATA);
   const [allCsvData, setAllCsvData] = useState<AllCsvData | null>(null);
@@ -128,16 +129,29 @@ export default function App() {
   const [selectedTeams, setSelectedTeams] = useState<TeamId[]>(Object.keys(TEAM_NAMES) as TeamId[]);
   const [showTeamAverage, setShowTeamAverage] = useState(false);
   const [reportDate, setReportDate] = useState(new Date());
+  const [csvLoadError, setCsvLoadError] = useState<string | null>(null);
 
   // Auto-load CSV data on mount
   useEffect(() => {
+    let cancelled = false;
     const loadCsv = async () => {
       try {
-        const res = await fetch('/data.csv');
+        const res = await fetch('/api/data', { credentials: 'same-origin' });
+        if (!res.ok) {
+          console.error('[CSV-LOAD] non-ok:', res.status);
+          if (!cancelled) {
+            setCsvLoadError(`서버에서 데이터를 불러오지 못했습니다 (HTTP ${res.status}).`);
+          }
+          return;
+        }
         const csvText = await res.text();
         const parseResult = Papa.parse(csvText, { header: true, skipEmptyLines: true });
         const rows = parseCsvRows(parseResult.data as Record<string, string>[]);
-        if (rows.length === 0) return;
+        if (cancelled) return;
+        if (rows.length === 0) {
+          setCsvLoadError('서버 데이터에 유효한 행이 없습니다.');
+          return;
+        }
 
         const allData = buildAllCsvData(rows);
         const weeklyData = buildWeeklyCsvData(rows);
@@ -145,11 +159,18 @@ export default function App() {
         setWeeklyCsvData(weeklyData);
         setHistoricalTrendData(buildHistoricalTrendData(allData));
         setSelectedYears(Object.keys(allData).map(Number).sort((a, b) => a - b).slice(-2));
+        setCsvLoadError(null);
       } catch (err) {
         console.error('[CSV-LOAD] error:', err);
+        if (!cancelled) {
+          setCsvLoadError('네트워크 오류로 데이터를 불러오지 못했습니다.');
+        }
       }
     };
     loadCsv();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Update current/lastYear/projection data when reportDate or allCsvData changes
@@ -238,23 +259,23 @@ export default function App() {
     return `${format(date, 'yyyy년 M월')} ${weekOfMonth}주차 (${format(start, 'MM.dd')} - ${format(end, 'MM.dd')})`;
   };
 
-  const toggleYear = (year: number) => {
-    setSelectedYears(prev => 
+  const toggleYear = useCallback((year: number) => {
+    setSelectedYears(prev =>
       prev.includes(year) ? prev.filter(y => y !== year) : [...prev, year].sort()
     );
-  };
+  }, []);
 
-  const toggleMonth = (month: number) => {
+  const toggleMonth = useCallback((month: number) => {
     setSelectedMonths(prev =>
       prev.includes(month) ? prev.filter(m => m !== month) : [...prev, month].sort((a, b) => a - b)
     );
-  };
+  }, []);
 
-  const toggleTeam = (teamId: TeamId) => {
+  const toggleTeam = useCallback((teamId: TeamId) => {
     setSelectedTeams(prev =>
       prev.includes(teamId) ? prev.filter(t => t !== teamId) : [...prev, teamId]
     );
-  };
+  }, []);
 
   const availableYears = useMemo(() => {
     if (allCsvData) {
@@ -262,22 +283,6 @@ export default function App() {
     }
     return YEARS;
   }, [allCsvData]);
-
-  const DYNAMIC_YEAR_COLORS = useMemo(() => {
-    const palette = ['#BDC3C7', '#7F8C8D', '#34495E', '#2980B9', '#8E44AD', '#27AE60', '#E67E22', '#E74C3C'];
-    const colors: Record<number, string> = {};
-    availableYears.forEach((year, i) => {
-      colors[year] = palette[i % palette.length];
-    });
-    // Override: make the latest year the accent color
-    if (availableYears.length > 0) {
-      colors[availableYears[availableYears.length - 1]] = '#2980B9';
-      if (availableYears.length > 1) {
-        colors[availableYears[availableYears.length - 2]] = '#34495E';
-      }
-    }
-    return colors;
-  }, [availableYears]);
 
   const handleCsvUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -403,31 +408,24 @@ export default function App() {
       });
   }, [selectedYears, selectedMonths, selectedTeams, historicalTrendData]);
 
-  // Build line keys and colors for the trend chart
-  const TEAM_STROKE_COLORS: Record<TeamId, string> = {
-    team1: '#2563EB', // blue
-    team2: '#DC2626', // red
-    team3: '#16A34A', // green
-  };
-  const YEAR_DASH_PATTERNS: Record<number, string> = {};
-  const YEAR_OPACITY: Record<number, number> = {};
-  // 최신 연도 → 실선+진한색, 오래된 연도 → 촘촘한 점선+연한색
-  availableYears.forEach((year, i) => {
-    const reverseIdx = availableYears.length - 1 - i; // 0=최신, 1,2,3=오래됨
-    if (reverseIdx === 0) {
-      YEAR_DASH_PATTERNS[year] = ''; // 실선
-      YEAR_OPACITY[year] = 1.0;
-    } else {
-      // 오래될수록 촘촘한 점선 (dash와 gap 모두 작게)
-      const dash = Math.max(2, 8 - reverseIdx * 2);
-      const gap = Math.max(2, 5 - reverseIdx);
-      YEAR_DASH_PATTERNS[year] = `${dash} ${gap}`;
-      // 오래될수록 연한 색
-      YEAR_OPACITY[year] = Math.max(0.25, 1.0 - reverseIdx * 0.25);
-    }
-  });
-
-  const AVERAGE_COLOR = '#F59E0B'; // amber
+  // 연도별 점선 패턴과 투명도: 최신 연도 → 실선+진한색, 오래된 연도 → 촘촘한 점선+연한색
+  const { YEAR_DASH_PATTERNS, YEAR_OPACITY } = useMemo(() => {
+    const dash: Record<number, string> = {};
+    const opacity: Record<number, number> = {};
+    availableYears.forEach((year, i) => {
+      const reverseIdx = availableYears.length - 1 - i; // 0=최신, 1,2,3=오래됨
+      if (reverseIdx === 0) {
+        dash[year] = ''; // 실선
+        opacity[year] = 1.0;
+      } else {
+        const d = Math.max(2, 8 - reverseIdx * 2);
+        const g = Math.max(2, 5 - reverseIdx);
+        dash[year] = `${d} ${g}`;
+        opacity[year] = Math.max(0.25, 1.0 - reverseIdx * 0.25);
+      }
+    });
+    return { YEAR_DASH_PATTERNS: dash, YEAR_OPACITY: opacity };
+  }, [availableYears]);
 
   const trendLineKeys = useMemo(() => {
     const keys: { key: string; color: string; dash: string; opacity: number }[] = [];
@@ -451,9 +449,7 @@ export default function App() {
       });
     });
     return keys;
-  }, [selectedYears, selectedTeams, showTeamAverage, availableYears]);
-
-  const YEAR_COLORS = DYNAMIC_YEAR_COLORS;
+  }, [selectedYears, selectedTeams, showTeamAverage, YEAR_DASH_PATTERNS, YEAR_OPACITY]);
 
   const buildTable1Rows = (
     curData: Record<TeamId, Partial<Record<PartId, MetricData>>>,
@@ -521,7 +517,6 @@ export default function App() {
     }
 
     // 파트별 평균 잔업시간 현황 차트 SVG 캡처
-    const chartContainer = document.querySelector('.recharts-wrapper svg') as SVGElement | null;
     // 두번째 recharts-wrapper가 파트별 차트
     const allChartWrappers = document.querySelectorAll('.recharts-wrapper');
     const partChartSvg = allChartWrappers.length > 1
@@ -832,6 +827,7 @@ export default function App() {
               </div>
               <input
                 type="date"
+                aria-label="보고 기준일 선택"
                 value={format(reportDate, 'yyyy-MM-dd')}
                 onChange={(e) => {
                   if (e.target.value) {
@@ -848,29 +844,56 @@ export default function App() {
               type="file"
               accept=".csv"
               id="csv-upload"
+              aria-label="CSV 파일 업로드"
               className="hidden"
               onChange={handleCsvUpload}
             />
-            <button 
+            <button
+              type="button"
               onClick={() => document.getElementById('csv-upload')?.click()}
+              aria-label="CSV 파일 업로드"
               className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
             >
-              <Upload size={16} />
+              <Upload size={16} aria-hidden="true" />
               CSV 업로드
             </button>
-            <button 
+            <button
+              type="button"
               onClick={generateReport}
+              aria-label="보고서 생성"
               className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
             >
-              <Plus size={16} />
+              <Plus size={16} aria-hidden="true" />
               보고서 생성
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors shadow-lg" style={{ backgroundColor: '#E8474C', boxShadow: '0 4px 6px -1px rgba(232,71,76,0.3)' }}>
-              <Save size={16} />
+            <button
+              type="button"
+              aria-label="전체 저장"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors shadow-lg"
+              style={{ backgroundColor: '#E8474C', boxShadow: '0 4px 6px -1px rgba(232,71,76,0.3)' }}
+            >
+              <Save size={16} aria-hidden="true" />
               전체 저장
             </button>
           </div>
         </header>
+
+        {csvLoadError && (
+          <div
+            role="alert"
+            className="mb-4 px-4 py-3 rounded-lg bg-rose-50 border border-rose-200 text-sm text-rose-700 flex items-center justify-between"
+          >
+            <span>{csvLoadError} · CSV를 직접 업로드하여 계속 진행할 수 있습니다.</span>
+            <button
+              type="button"
+              onClick={() => setCsvLoadError(null)}
+              className="text-xs font-semibold text-rose-500 hover:text-rose-700"
+              aria-label="에러 메시지 닫기"
+            >
+              닫기
+            </button>
+          </div>
+        )}
 
         <div className="space-y-8">
           {/* Year Selection & Trend Chart */}
@@ -1275,63 +1298,3 @@ function CompactInputField({ label, unit, value, onChange }: { label: string, un
   );
 }
 
-function SidebarItem({ icon, label, active = false }: { icon: React.ReactNode, label: string, active?: boolean }) {
-  return (
-    <button className={cn(
-      "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200",
-      active 
-        ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200 font-medium" 
-        : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-    )}>
-      {icon}
-      <span>{label}</span>
-      {active && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white/40" />}
-    </button>
-  );
-}
-
-function InputField({ label, icon, value, onChange }: { label: string, icon: React.ReactNode, value: string, onChange: (v: string) => void }) {
-  return (
-    <div className="space-y-1.5">
-      <label className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
-        {icon}
-        {label}
-      </label>
-      <input 
-        type="number" 
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-mono"
-        placeholder="0.0"
-      />
-    </div>
-  );
-}
-
-function GrowthItem({ label, current, target, unit, inverse = false }: { label: string, current: number, target: number, unit: string, inverse?: boolean }) {
-  const diff = current - target;
-  const percent = target !== 0 ? (diff / target) * 100 : 0;
-  const isPositive = diff > 0;
-  
-  // For overtime, positive diff is "bad" (red), so we might want to inverse colors
-  const isGood = inverse ? !isPositive : isPositive;
-
-  return (
-    <div className="flex items-center justify-between">
-      <div>
-        <div className="text-xs opacity-60 mb-0.5">{label}</div>
-        <div className="text-lg font-bold font-mono">{current}{unit}</div>
-      </div>
-      <div className={cn(
-        "flex flex-col items-end",
-        isPositive ? (inverse ? "text-rose-300" : "text-emerald-300") : (inverse ? "text-emerald-300" : "text-rose-300")
-      )}>
-        <div className="flex items-center gap-1 text-sm font-bold">
-          {isPositive ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
-          {Math.abs(percent).toFixed(1)}%
-        </div>
-        <div className="text-[10px] opacity-60">vs 전년</div>
-      </div>
-    </div>
-  );
-}

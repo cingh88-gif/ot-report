@@ -7,3 +7,8 @@ coverage/
 .env*
 !.env.example
 .vercel
+.playwright-mcp/
+*.png
+!public/*.png
+chrome
+ot-report-weekly-backdata*.csv
