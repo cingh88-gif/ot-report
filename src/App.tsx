@@ -145,7 +145,7 @@ export default function App() {
     let cancelled = false;
     const loadCsv = async () => {
       try {
-        const res = await fetch('/api/data', { credentials: 'same-origin' });
+        const res = await fetch('/data.csv', { credentials: 'same-origin' });
         if (!res.ok) {
           console.error('[CSV-LOAD] non-ok:', res.status);
           if (!cancelled) {
