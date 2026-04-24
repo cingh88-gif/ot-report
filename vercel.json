@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
-    "api/*.ts": { "runtime": "@vercel/node@5.1.14" }
+    "api/*.ts": { "runtime": "@vercel/node@5.7.13" }
   },
   "headers": [
     {
