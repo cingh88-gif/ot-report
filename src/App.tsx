@@ -40,42 +40,51 @@ function cn(...inputs: ClassValue[]) {
 const INITIAL_DATA: Record<TeamId, Partial<Record<PartId, MetricData>>> = {
   team1: {
     manufacturing: { headcount: 100, workingHours: 40, overtimeHours: 8 },
+    support: { headcount: 15, workingHours: 40, overtimeHours: 8 },
   },
   team2: {
     manufacturing: { headcount: 100, workingHours: 40, overtimeHours: 8 },
     filling_molding: { headcount: 100, workingHours: 40, overtimeHours: 8 },
+    support: { headcount: 10, workingHours: 40, overtimeHours: 8 },
   },
   team3: {
     manufacturing: { headcount: 100, workingHours: 40, overtimeHours: 8 },
     filling_molding: { headcount: 100, workingHours: 40, overtimeHours: 8 },
+    support: { headcount: 10, workingHours: 40, overtimeHours: 8 },
   },
 };
 
 const LAST_YEAR_DATA: Record<TeamId, Partial<Record<PartId, MetricData>>> = {
   team1: {
     manufacturing: { headcount: 110, workingHours: 40, overtimeHours: 5 },
+    support: { headcount: 15, workingHours: 40, overtimeHours: 5 },
   },
   team2: {
     manufacturing: { headcount: 110, workingHours: 40, overtimeHours: 5 },
     filling_molding: { headcount: 110, workingHours: 40, overtimeHours: 5 },
+    support: { headcount: 10, workingHours: 40, overtimeHours: 5 },
   },
   team3: {
     manufacturing: { headcount: 110, workingHours: 40, overtimeHours: 5 },
     filling_molding: { headcount: 110, workingHours: 40, overtimeHours: 5 },
+    support: { headcount: 10, workingHours: 40, overtimeHours: 5 },
   },
 };
 
 const PROJECTION_DATA: Record<TeamId, Partial<Record<PartId, MetricData>>> = {
   team1: {
     manufacturing: { headcount: 100, workingHours: 40, overtimeHours: 8 },
+    support: { headcount: 15, workingHours: 40, overtimeHours: 8 },
   },
   team2: {
     manufacturing: { headcount: 100, workingHours: 40, overtimeHours: 8 },
     filling_molding: { headcount: 100, workingHours: 40, overtimeHours: 8 },
+    support: { headcount: 10, workingHours: 40, overtimeHours: 8 },
   },
   team3: {
     manufacturing: { headcount: 100, workingHours: 40, overtimeHours: 8 },
     filling_molding: { headcount: 100, workingHours: 40, overtimeHours: 8 },
+    support: { headcount: 10, workingHours: 40, overtimeHours: 8 },
   },
 };
 

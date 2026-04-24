@@ -1,5 +1,5 @@
 export type TeamId = 'team1' | 'team2' | 'team3';
-export type PartId = 'manufacturing' | 'filling_molding';
+export type PartId = 'manufacturing' | 'filling_molding' | 'support';
 
 export interface MetricData {
   headcount: number;      // 평균인원 (명)
@@ -33,6 +33,7 @@ export const TEAM_NAMES: Record<TeamId, string> = {
 export const PART_NAMES: Record<PartId, string> = {
   manufacturing: '제조',
   filling_molding: '충전/성형',
+  support: '지원',
 };
 
 export interface CsvRow {
