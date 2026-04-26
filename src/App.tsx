@@ -502,8 +502,9 @@ export default function App() {
           const rowspanTeam = pIdx === 0 && mIdx === 0 ? '<td rowspan="' + (parts.length * 3) + '" class="bg-group">' + TEAM_NAMES[teamId] + '</td>' : '';
           const rowspanPart = mIdx === 0 ? '<td rowspan="3" class="bg-subgroup">' + PART_NAMES[partId] + '</td>' : '';
           const otClass = isUp ? 'text-rose-500' : '';
+          const isTeamBreak = teamId === 'team2' && pIdx === 0 && mIdx === 0;
 
-          return '<tr class="data-row">'
+          return '<tr class="data-row' + (isTeamBreak ? ' team-break' : '') + '">'
             + rowspanTeam
             + rowspanPart
             + '<td>' + m.label + '</td>'
@@ -609,6 +610,14 @@ export default function App() {
               page-break-before: always;
               break-before: page;
             }
+            /* 표 페이지 분할: 생산2팀 행이 새 페이지에서 시작 */
+            tr.team-break > td {
+              page-break-before: always;
+              break-before: page;
+            }
+            /* 페이지 분할 시 표 헤더 반복 노출 */
+            thead { display: table-header-group; }
+            tr { page-break-inside: avoid; break-inside: avoid; }
           </style>
         </head>
         <body>
@@ -723,8 +732,9 @@ export default function App() {
                       const lyDiff = m.lyVal !== 0 ? ((m.c - m.lyVal) / m.lyVal * 100).toFixed(1) : '0.0';
                       const lyIsUp = m.c > m.lyVal;
 
+                      const isTeamBreak2 = teamId === 'team2' && pIdx === 0 && mIdx === 0;
                       return `
-                        <tr class="data-row">
+                        <tr class="data-row${isTeamBreak2 ? ' team-break' : ''}">
                           ${pIdx === 0 && mIdx === 0 ? `<td rowspan="${parts.length * 4}" class="bg-group">${TEAM_NAMES[teamId]}</td>` : ''}
                           ${mIdx === 0 ? `<td rowspan="4" class="bg-subgroup">${PART_NAMES[partId]}</td>` : ''}
                           <td>${m.label}</td>
