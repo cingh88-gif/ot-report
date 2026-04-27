@@ -696,6 +696,7 @@ export default function App() {
               </tbody>
             </table>
 
+            <div style="height:32px;"></div>
             <h2 class="text-xs font-bold mb-1">2. 당월말 예상 환산치</h2>
             <table id="table-2">
               <thead>
