@@ -1116,16 +1116,19 @@ export default function App() {
                   </div>
                 </div>
               </div>
-              <div className="h-[300px] w-full">
-                <ResponsiveContainer width={750} height={300}>
-                  <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+              <div className="h-[340px] w-full">
+                <ResponsiveContainer width={750} height={340}>
+                  <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 60 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis 
-                      dataKey="name" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fill: '#64748b', fontSize: 10 }} 
-                      dy={10}
+                    <XAxis
+                      dataKey="name"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#64748b', fontSize: 10 }}
+                      angle={-25}
+                      textAnchor="end"
+                      interval={0}
+                      height={70}
                     />
                     <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} unit="h" />
                     <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
