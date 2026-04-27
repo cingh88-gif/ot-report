@@ -502,9 +502,8 @@ export default function App() {
           const rowspanTeam = pIdx === 0 && mIdx === 0 ? '<td rowspan="' + (parts.length * 3) + '" class="bg-group">' + TEAM_NAMES[teamId] + '</td>' : '';
           const rowspanPart = mIdx === 0 ? '<td rowspan="3" class="bg-subgroup">' + PART_NAMES[partId] + '</td>' : '';
           const otClass = isUp ? 'text-rose-500' : '';
-          const isTeamBreak = teamId === 'team2' && pIdx === 0 && mIdx === 0;
 
-          return '<tr class="data-row' + (isTeamBreak ? ' team-break' : '') + '">'
+          return '<tr class="data-row">'
             + rowspanTeam
             + rowspanPart
             + '<td>' + m.label + '</td>'
@@ -610,11 +609,13 @@ export default function App() {
               page-break-before: always;
               break-before: page;
             }
-            /* 표 페이지 분할: 생산2팀 행이 새 페이지에서 시작 */
+            /* 표 2: 생산2팀 행이 새 페이지에서 시작 (표 1은 한 덩어리로 유지) */
             tr.team-break > td {
               page-break-before: always;
               break-before: page;
             }
+            /* 표 1은 분할 없이 한 페이지에 묶음 */
+            #table-1 { page-break-inside: avoid; break-inside: avoid; }
             /* 페이지 분할 시 표 헤더 반복 노출 */
             thead { display: table-header-group; }
             tr { page-break-inside: avoid; break-inside: avoid; }
@@ -1268,15 +1269,17 @@ export default function App() {
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {chartData.map((item, idx) => {
-                    const hcDiff = item.headcount - item.headcountLY;
+                    const hcCur = Math.round(item.headcount);
+                    const hcLY = Math.round(item.headcountLY);
+                    const hcDiff = hcCur - hcLY;
                     const isUp = hcDiff > 0;
                     const isSame = hcDiff === 0;
 
                     return (
                       <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-4 font-medium text-slate-700">{item.name}</td>
-                        <td className="px-6 py-4 text-center font-mono font-bold">{item.headcount}명</td>
-                        <td className="px-6 py-4 text-center font-mono text-slate-400">{item.headcountLY}명</td>
+                        <td className="px-6 py-4 text-center font-mono font-bold">{hcCur}명</td>
+                        <td className="px-6 py-4 text-center font-mono text-slate-400">{hcLY}명</td>
                         <td className="px-6 py-4 text-center">
                           <div className={cn(
                             "inline-flex items-center gap-1 font-mono font-bold px-2 py-1 rounded-md text-[11px]",
