@@ -185,8 +185,10 @@ export default function App() {
   // Update current/lastYear/projection data when reportDate or allCsvData changes
   useEffect(() => {
     if (!allCsvData) return;
-    let year = reportDate.getFullYear();
-    let month = reportDate.getMonth() + 1;
+    const reportYear = reportDate.getFullYear();
+    const reportMonth = reportDate.getMonth() + 1;
+    let year = reportYear;
+    let month = reportMonth;
 
     const extracted = extractPeriodData(allCsvData, year, month);
     // If no data for selected month, fallback to latest available period
@@ -203,7 +205,12 @@ export default function App() {
     const monthWeeks = weeklyCsvData?.[year]?.[month];
     const hasWeeklyRows = monthWeeks && Object.keys(monthWeeks).some(w => Number(w) > 0);
     if (hasWeeklyRows && weeklyCsvData) {
-      const maxWeek = getWeekNumberInMonth(reportDate);
+      // 폴백된 월(reportDate와 다른 월)은 해당 월 마지막 주차까지 모두 누적,
+      // 같은 월이면 reportDate 기준 주차까지만 누적
+      const isFallback = year !== reportYear || month !== reportMonth;
+      const maxWeek = isFallback
+        ? (findLatestWeek(weeklyCsvData, year, month) ?? getWeekNumberInMonth(reportDate))
+        : getWeekNumberInMonth(reportDate);
       setCurrentData(extractAccumulatedWeekData(weeklyCsvData, year, month, maxWeek));
     } else {
       setCurrentData(extractPeriodData(allCsvData, year, month));
