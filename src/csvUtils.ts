@@ -101,6 +101,12 @@ const PART_NAME_TO_ID: Record<string, PartId> = {};
   PART_NAME_TO_ID[PART_NAMES[id]] = id;
 });
 
+// 천단위 콤마(예: "2,832")를 허용하기 위해 콤마 제거 후 숫자 파싱
+const parseNum = (v: string | undefined): number => {
+  if (!v) return 0;
+  return parseFloat(String(v).replace(/,/g, '')) || 0;
+};
+
 export function parseCsvRows(rawRows: Record<string, string>[]): CsvRow[] {
   return rawRows
     .map(row => {
@@ -109,9 +115,9 @@ export function parseCsvRows(rawRows: Record<string, string>[]): CsvRow[] {
       const year = parseInt(row['연도'] || '0', 10);
       const month = parseInt(row['월'] || '0', 10);
       const week = parseInt(row['주차'] || '0', 10);
-      const headcount = parseFloat(row['평균인원'] || '0') || 0;
-      const totalWorkingHours = parseFloat(row['총 근무시간(h)'] || '0') || 0;
-      const totalOvertimeHours = parseFloat(row['총 잔업시간(h)'] || '0') || 0;
+      const headcount = parseNum(row['평균인원']);
+      const totalWorkingHours = parseNum(row['총 근무시간(h)']);
+      const totalOvertimeHours = parseNum(row['총 잔업시간(h)']);
 
       return { teamName, partName, year, month, week, headcount, totalWorkingHours, totalOvertimeHours };
     })
