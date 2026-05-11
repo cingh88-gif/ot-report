@@ -5,10 +5,10 @@ coverage/
 .DS_Store
 *.log
 .env*
-!.env.example
-.vercel
-.playwright-mcp/
+
+# 작업 중 스크린샷이 git에 들어가지 않도록 (public/ 안 제외)
 *.png
 !public/*.png
-chrome
-ot-report-weekly-backdata*.csv
+
+# 실 운영 데이터(별도 전달). 인수자는 받은 파일을 이 경로에 둔다.
+public/data.csv

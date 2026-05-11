@@ -36,80 +36,17 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Mock Initial Data
-const INITIAL_DATA: Record<TeamId, Partial<Record<PartId, MetricData>>> = {
-  team1: {
-    manufacturing: { headcount: 100, workingHours: 40, overtimeHours: 8 },
-    support: { headcount: 15, workingHours: 40, overtimeHours: 8 },
-  },
-  team2: {
-    manufacturing: { headcount: 100, workingHours: 40, overtimeHours: 8 },
-    filling_molding: { headcount: 100, workingHours: 40, overtimeHours: 8 },
-    support: { headcount: 10, workingHours: 40, overtimeHours: 8 },
-  },
-  team3: {
-    manufacturing: { headcount: 100, workingHours: 40, overtimeHours: 8 },
-    filling_molding: { headcount: 100, workingHours: 40, overtimeHours: 8 },
-    support: { headcount: 10, workingHours: 40, overtimeHours: 8 },
-  },
+// CSV 로드 전 초기 상태용 빈 데이터. 실 데이터/샘플 데이터(public/data.csv,
+// public/data.sample.csv)가 로드되면 모두 덮어쓰여진다.
+const EMPTY_TEAM_DATA: Record<TeamId, Partial<Record<PartId, MetricData>>> = {
+  team1: {},
+  team2: {},
+  team3: {},
 };
 
-const LAST_YEAR_DATA: Record<TeamId, Partial<Record<PartId, MetricData>>> = {
-  team1: {
-    manufacturing: { headcount: 110, workingHours: 40, overtimeHours: 5 },
-    support: { headcount: 15, workingHours: 40, overtimeHours: 5 },
-  },
-  team2: {
-    manufacturing: { headcount: 110, workingHours: 40, overtimeHours: 5 },
-    filling_molding: { headcount: 110, workingHours: 40, overtimeHours: 5 },
-    support: { headcount: 10, workingHours: 40, overtimeHours: 5 },
-  },
-  team3: {
-    manufacturing: { headcount: 110, workingHours: 40, overtimeHours: 5 },
-    filling_molding: { headcount: 110, workingHours: 40, overtimeHours: 5 },
-    support: { headcount: 10, workingHours: 40, overtimeHours: 5 },
-  },
-};
+const EMPTY_TREND_DATA: Record<number, { month: string; [teamId: string]: number | string }[]> = {};
 
-const PROJECTION_DATA: Record<TeamId, Partial<Record<PartId, MetricData>>> = {
-  team1: {
-    manufacturing: { headcount: 100, workingHours: 40, overtimeHours: 8 },
-    support: { headcount: 15, workingHours: 40, overtimeHours: 8 },
-  },
-  team2: {
-    manufacturing: { headcount: 100, workingHours: 40, overtimeHours: 8 },
-    filling_molding: { headcount: 100, workingHours: 40, overtimeHours: 8 },
-    support: { headcount: 10, workingHours: 40, overtimeHours: 8 },
-  },
-  team3: {
-    manufacturing: { headcount: 100, workingHours: 40, overtimeHours: 8 },
-    filling_molding: { headcount: 100, workingHours: 40, overtimeHours: 8 },
-    support: { headcount: 10, workingHours: 40, overtimeHours: 8 },
-  },
-};
-
-// Generate Historical Monthly Data (2023-2026)
-const YEARS = [2023, 2024, 2025, 2026];
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
-
-const generateHistoricalData = () => {
-  const data: any = {};
-  YEARS.forEach(year => {
-    data[year] = MONTHS.map(month => {
-      const monthData: any = { month: `${month}월` };
-      Object.keys(TEAM_NAMES).forEach(teamId => {
-        const baseOvertime = teamId === 'team1' ? 8 : teamId === 'team2' ? 10 : 6;
-        // Add some randomness based on year and month
-        const variance = (year - 2023) * 0.5 + Math.cos(month) * 2;
-        monthData[teamId] = Math.max(0, parseFloat((baseOvertime + variance).toFixed(1)));
-      });
-      return monthData;
-    });
-  });
-  return data;
-};
-
-const HISTORICAL_TREND_DATA = generateHistoricalData();
 
 // 상수: 팀별 선 색상과 전년 평균 색상
 const TEAM_STROKE_COLORS: Record<TeamId, string> = {
@@ -120,18 +57,18 @@ const TEAM_STROKE_COLORS: Record<TeamId, string> = {
 const AVERAGE_COLOR = '#F59E0B'; // amber
 
 export default function App() {
-  const [currentData, setCurrentData] = useState(INITIAL_DATA);
+  const [currentData, setCurrentData] = useState(EMPTY_TEAM_DATA);
   const [allCsvData, setAllCsvData] = useState<AllCsvData | null>(null);
   const [weeklyCsvData, setWeeklyCsvData] = useState<WeeklyCsvData | null>(null);
   const [currentWeekData, setCurrentWeekData] = useState<Record<TeamId, Partial<Record<PartId, MetricData>>> | null>(null);
   const [prevWeekData, setPrevWeekData] = useState<Record<TeamId, Partial<Record<PartId, MetricData>>> | null>(null);
   const [currentWeekInfo, setCurrentWeekInfo] = useState<{ month: number; week: number } | null>(null);
   const [prevWeekInfo, setPrevWeekInfo] = useState<{ month: number; week: number } | null>(null);
-  const [prevMonthData, setPrevMonthData] = useState(LAST_YEAR_DATA);
-  const [lastYearData, setLastYearData] = useState(LAST_YEAR_DATA);
-  const [lastYearAvgData, setLastYearAvgData] = useState(LAST_YEAR_DATA);
-  const [projectionData, setProjectionData] = useState(PROJECTION_DATA);
-  const [historicalTrendData, setHistoricalTrendData] = useState(HISTORICAL_TREND_DATA);
+  const [prevMonthData, setPrevMonthData] = useState(EMPTY_TEAM_DATA);
+  const [lastYearData, setLastYearData] = useState(EMPTY_TEAM_DATA);
+  const [lastYearAvgData, setLastYearAvgData] = useState(EMPTY_TEAM_DATA);
+  const [projectionData, setProjectionData] = useState(EMPTY_TEAM_DATA);
+  const [historicalTrendData, setHistoricalTrendData] = useState(EMPTY_TREND_DATA);
   const [displayPeriod, setDisplayPeriod] = useState({ year: new Date().getFullYear(), month: new Date().getMonth() + 1 });
   const [selectedYears, setSelectedYears] = useState<number[]>([2025, 2026]);
   const [selectedMonths, setSelectedMonths] = useState<number[]>(MONTHS);
@@ -140,41 +77,49 @@ export default function App() {
   const [reportDate, setReportDate] = useState(new Date());
   const [csvLoadError, setCsvLoadError] = useState<string | null>(null);
 
-  // Auto-load CSV data on mount
+  // Auto-load CSV data on mount.
+  // 우선 실 데이터(/data.csv)를 시도하고, 없으면 샘플(/data.sample.csv)로 폴백한다.
   useEffect(() => {
     let cancelled = false;
-    const loadCsv = async () => {
-      try {
-        const res = await fetch('/data.csv', { credentials: 'same-origin' });
-        if (!res.ok) {
-          console.error('[CSV-LOAD] non-ok:', res.status);
-          if (!cancelled) {
-            setCsvLoadError(`서버에서 데이터를 불러오지 못했습니다 (HTTP ${res.status}).`);
-          }
-          return;
-        }
-        const csvText = await res.text();
-        const parseResult = Papa.parse(csvText, { header: true, skipEmptyLines: true });
-        const rows = parseCsvRows(parseResult.data as Record<string, string>[]);
-        if (cancelled) return;
-        if (rows.length === 0) {
-          setCsvLoadError('서버 데이터에 유효한 행이 없습니다.');
-          return;
-        }
 
-        const allData = buildAllCsvData(rows);
-        const weeklyData = buildWeeklyCsvData(rows);
-        setAllCsvData(allData);
-        setWeeklyCsvData(weeklyData);
-        setHistoricalTrendData(buildHistoricalTrendData(allData));
-        setSelectedYears(Object.keys(allData).map(Number).sort((a, b) => a - b).slice(-2));
-        setCsvLoadError(null);
-      } catch (err) {
-        console.error('[CSV-LOAD] error:', err);
-        if (!cancelled) {
-          setCsvLoadError('네트워크 오류로 데이터를 불러오지 못했습니다.');
-        }
+    const tryFetchCsv = async (url: string): Promise<string | null> => {
+      try {
+        const res = await fetch(url, { credentials: 'same-origin' });
+        if (!res.ok) return null;
+        return await res.text();
+      } catch {
+        return null;
       }
+    };
+
+    const loadCsv = async () => {
+      let csvText = await tryFetchCsv('/data.csv');
+      let usedSample = false;
+      if (csvText === null) {
+        csvText = await tryFetchCsv('/data.sample.csv');
+        usedSample = csvText !== null;
+      }
+      if (cancelled) return;
+      if (csvText === null) {
+        setCsvLoadError('데이터 파일을 찾을 수 없습니다. public/data.csv 를 배치해 주세요.');
+        return;
+      }
+
+      const parseResult = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+      const rows = parseCsvRows(parseResult.data as Record<string, string>[]);
+      if (cancelled) return;
+      if (rows.length === 0) {
+        setCsvLoadError('CSV에 유효한 행이 없습니다.');
+        return;
+      }
+
+      const allData = buildAllCsvData(rows);
+      const weeklyData = buildWeeklyCsvData(rows);
+      setAllCsvData(allData);
+      setWeeklyCsvData(weeklyData);
+      setHistoricalTrendData(buildHistoricalTrendData(allData));
+      setSelectedYears(Object.keys(allData).map(Number).sort((a, b) => a - b).slice(-2));
+      setCsvLoadError(usedSample ? '실 데이터(data.csv)가 없어 샘플 데이터(data.sample.csv)로 표시 중입니다.' : null);
     };
     loadCsv();
     return () => {
@@ -293,11 +238,11 @@ export default function App() {
     );
   }, []);
 
-  const availableYears = useMemo(() => {
+  const availableYears = useMemo<number[]>(() => {
     if (allCsvData) {
       return Object.keys(allCsvData).map(Number).sort((a, b) => a - b);
     }
-    return YEARS;
+    return [];
   }, [allCsvData]);
 
   const handleCsvUpload = (event: React.ChangeEvent<HTMLInputElement>) => {

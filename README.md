@@ -1,20 +1,92 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 생산팀 OT 주간 보고 (ot-report)
 
-# Run and deploy your AI Studio app
+생산본부 임원 보고용 주간 잔업 대시보드. Vite + React 19 + TypeScript로 만들어진 로컬 실행형 정적 웹앱입니다.
 
-This contains everything you need to run your app locally.
+## 사전 요구사항
 
-View your app in AI Studio: https://ai.studio/apps/103a560a-e1bf-4bbe-87ce-7a9d3df9a98e
+- Node.js 20 이상 (LTS 권장)
+- npm
 
-## Run Locally
+## 설치 및 실행
 
-**Prerequisites:**  Node.js
+```bash
+npm install
+npm run dev
+```
 
+브라우저에서 http://localhost:3000 접속.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## 빌드 / 미리보기
+
+```bash
+npm run build      # dist/ 생성
+npm run preview    # 빌드 결과 로컬 서빙
+```
+
+`dist/`는 정적 파일이므로 어떤 정적 호스팅에도 배포 가능합니다 (단순히 폴더 내용물을 사내 웹 서버에 올리면 됩니다).
+
+## 데이터 파일
+
+앱은 마운트 시 다음 순서로 CSV를 자동 로드합니다.
+
+1. `public/data.csv` — **실 운영 데이터** (이관 시 별도 전달 받은 파일을 이 경로에 둡니다. git 추적 제외)
+2. `public/data.sample.csv` — 샘플 데이터 (저장소에 포함, 폴백/스키마 참고용)
+3. 둘 다 없으면 화면 상단에 에러 메시지
+
+UI 좌측 상단의 "데이터 업로드" 버튼으로 별도 CSV를 임시 적용할 수도 있습니다.
+
+### CSV 스키마
+
+| 컬럼 | 타입 | 설명 |
+| --- | --- | --- |
+| 팀 구분 | 문자 | `생산1팀`, `생산2팀`, `생산3팀` |
+| 파트 구분 | 문자 | `제조`, `충전/성형`, `지원` |
+| 연도 | 정수 | 예: `2026` |
+| 월 | 정수 | `1`~`12` |
+| 주차 | 정수 | `0`=월간 집계, `1`~`5`=해당 월의 주차별 |
+| 평균인원 | 정수/실수 | 해당 기간 평균 인원 (명) |
+| 총 근무시간(h) | 실수 | 해당 기간 총 근무시간 |
+| 총 잔업시간(h) | 실수 | 해당 기간 총 잔업시간 |
+| 인당 평균 근무시간(h) | 실수 | 1인당 평균 근무시간 |
+| 인당 평균 잔업시간(h) | 실수 | 1인당 평균 잔업시간 |
+
+천 단위 콤마(`1,234.5`)는 자동으로 처리됩니다.
+
+## 디렉토리 구조
+
+```
+ot-report/
+├── public/
+│   ├── cosmax-logo.jpg       # 헤더 로고
+│   ├── data.csv              # 실 데이터 (git 제외, 별도 전달)
+│   └── data.sample.csv       # 샘플 데이터 (폴백)
+├── src/
+│   ├── App.tsx               # 메인 컴포넌트, 차트/표 렌더링
+│   ├── csvUtils.ts           # CSV 파싱/집계 유틸
+│   ├── types.ts              # 공통 타입, 팀/파트명 매핑
+│   ├── main.tsx              # React 진입점
+│   └── index.css             # 글로벌 스타일
+├── prompts/                  # 작업 이력
+├── index.html
+├── package.json
+├── tsconfig.json
+└── vite.config.ts
+```
+
+## 스크립트
+
+| 명령 | 설명 |
+| --- | --- |
+| `npm run dev` | 개발 서버 (포트 3000) |
+| `npm run build` | 프로덕션 빌드 → `dist/` |
+| `npm run preview` | 빌드 결과 로컬 서빙 |
+| `npm run lint` | TypeScript 타입 체크 (`tsc --noEmit`) |
+| `npm run clean` | `dist/` 삭제 |
+
+## 인쇄 / PDF 출력
+
+브라우저의 인쇄 기능을 사용하면 보고서 페이지가 자동으로 페이지 분할되어 출력됩니다 (A4 기준).
+
+## 라이선스
+
+내부 업무용.
